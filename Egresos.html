@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Egresos Diarios - Sushi Tlalpan</title>
+  <style>
+    :root {
+      --white: #ffffff;
+      --black: #000000;
+      --pink: #e94a7e;
+      --yellow: #f0d44c;
+      --blue: #41c5d3;
+    }
+    body {
+      background-image: url('https://previews.123rf.com/images/stolenpencil/stolenpencil1506/stolenpencil150600007/41960701-sushi-y-rollos-patr%C3%B3n-transparente-sobre-fondo-blanco.jpg');
+      background-repeat: repeat;
+      background-color: rgba(255, 255, 255, 0.7);
+      background-blend-mode: lighten;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .form-container {
+      background-color: rgba(255, 255, 255, 0.85);
+      width: 100%;
+      max-width: 800px;
+      border-radius: 15px;
+      padding: 40px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      border: 3px solid var(--blue);
+      backdrop-filter: blur(8px);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #333;
+    }
+    .form-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+    }
+    .form-column {
+      flex: 1;
+      min-width: 300px;
+    }
+    .input-group {
+      /* MODIFICACIÓN: Aumentado el margen para mayor separación */
+      margin-bottom: 20px;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #444;
+    }
+    .input-group input,
+    .input-group select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--yellow);
+      border-radius: 10px;
+      background-color: rgba(255, 255, 255, 0.9);
+      transition: all 0.3s ease;
+    }
+    .input-group input:focus,
+    .input-group select:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 8px rgba(65, 197, 211, 0.4);
+    }
+    .submit-btn {
+      width: 100%;
+      background-color: var(--pink);
+      color: var(--white);
+      border: none;
+      padding: 15px;
+      border-radius: 10px;
+      font-size: 18px;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background-color 0.3s ease;
+    }
+    .submit-btn:hover {
+        background-color: #d43d71;
+    }
+    .submit-btn:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h1>Formulario de Egresos Diarios</h1>
+    <form id="egresoForm">
+      <div class="form-grid">
+        <div class="form-column">
+          <div class="input-group">
+            <label for="fecha">Fecha</label>
+            <input type="date" id="fecha" name="fecha" required>
+          </div>
+          <div class="input-group">
+            <label for="compra_servicio">Compra/Servicio</label>
+            <input type="text" id="compra_servicio" name="compra_servicio" required>
+          </div>
+          <div class="input-group">
+            <label for="lugar_compra">Lugar de Compra</label>
+            <input type="text" id="lugar_compra" name="lugar_compra" required>
+          </div>
+          <div class="input-group">
+            <label for="concepto">Concepto</label>
+            <select id="concepto" name="concepto" required>
+              <option value="">Seleccionar...</option>
+              <option value="MATERIA PRIMA">MATERIA PRIMA</option>
+              <option value="CONSUMIBLE">CONSUMIBLE</option>
+              <option value="FERRETERÍA">FERRETERÍA</option>
+              <option value="PAPELERÍA">PAPELERÍA</option>
+              <option value="MAQUINARIA Y EQ.">MAQUINARIA Y EQUIPO</option>
+              <option value="RENTA">RENTA</option>
+              <option value="TELÉFONO">TELÉFONO</option>
+              <option value="UTENSILIOS">UTENSILIOS</option>
+              <option value="JARCERÍA">JARCERÍA</option>
+              <option value="ENVÍOS">ENVÍOS</option>
+              <option value="OTROS">OTROS</option>
+              <option value="MANTENIMIENTO">MANTENIMIENTO</option>
+              <option value="LUZ">LUZ</option>
+              <option value="GAS">GAS</option>
+              <option value="GASOLINA">GASOLINA</option>
+              <option value="AGUA">AGUA</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-column">
+          <div class="input-group">
+            <label for="sucursalSelect">Sucursal</label>
+            <select id="sucursalSelect" name="sucursal" required>
+              <option value="">Cargando...</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label for="operadorSelect">Operador</label>
+            <select id="operadorSelect" name="operador" required>
+              <option value="">Cargando...</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label for="cantidad">Cantidad</label>
+            <input type="number" id="cantidad" name="cantidad" step="any" required>
+          </div>
+          <div class="input-group">
+            <label for="udm">UDM</label>
+            <select id="udm" name="udm" required>
+              <option value="">Seleccionar...</option>
+              <option value="PZA">PZA</option>
+              <option value="KG">KG</option>
+              <option value="SRV">SRV</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label for="precio">Precio</label>
+            <input type="number" id="precio" step="0.01" name="precio" required>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="submit-btn">Registrar Egreso</button>
+    </form>
+  </div>
+
+  <script>
+    const backendApiBaseUrl = 'https://verbally-sound-chamois.ngrok-free.app';
+
+    const form = document.getElementById('egresoForm');
+    const operadorSelect = document.getElementById('operadorSelect');
+    const sucursalSelect = document.getElementById('sucursalSelect');
+
+    window.addEventListener('DOMContentLoaded', () => {
+        cargarSucursales();
+        cargarOperadoresYSeleccionarUsuario();
+        document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+    });
+    
+    async function cargarOperadoresYSeleccionarUsuario() {
+        const loggedInUser = sessionStorage.getItem('loggedInUser');
+        try {
+            const response = await fetch(`${backendApiBaseUrl}/users`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+            const data = await response.json();
+            if (data.users && data.users.length > 0) {
+                operadorSelect.innerHTML = '<option value="" disabled>Selecciona un operador</option>';
+                data.users.sort().forEach(operador => {
+                    operadorSelect.innerHTML += `<option value="${operador}">${operador}</option>`;
+                });
+                if (loggedInUser && data.users.includes(loggedInUser)) {
+                    operadorSelect.value = loggedInUser;
+                    operadorSelect.disabled = true;
+                } else {
+                    operadorSelect.firstChild.selected = true;
+                }
+            } else {
+                operadorSelect.innerHTML = '<option value="" disabled>No hay operadores</option>';
+            }
+        } catch (error) {
+            operadorSelect.innerHTML = '<option value="" disabled>Error al cargar</option>';
+        }
+    }
+
+    async function cargarSucursales() {
+        try {
+            const response = await fetch(`${backendApiBaseUrl}/branches`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+            const data = await response.json();
+            if (data.branches && data.branches.length > 0) {
+                sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
+                data.branches.sort().forEach(sucursal => {
+                    sucursalSelect.innerHTML += `<option value="${sucursal}">${sucursal}</option>`;
+                });
+            } else {
+                sucursalSelect.innerHTML = '<option value="" disabled>No hay sucursales</option>';
+            }
+        } catch (error) {
+            sucursalSelect.innerHTML = '<option value="" disabled>Error al cargar</option>';
+        }
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const submitButton = form.querySelector('.submit-btn');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Enviando...';
+      
+      operadorSelect.disabled = false;
+      const formData = new FormData(this);
+      operadorSelect.disabled = true;
+
+      fetch(`${backendApiBaseUrl}/egresos`, {
+        method: "POST",
+        body: formData,
+        headers: { 'ngrok-skip-browser-warning': 'true' }
+      })
+      .then(response => response.json())
+      .then(data => {
+        alert(data.message);
+        if (data.success) {
+          form.reset();
+          document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+          cargarOperadoresYSeleccionarUsuario();
+        }
+      })
+      .catch(error => {
+        alert('Error al conectar con el servidor.');
+      })
+      .finally(() => {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Registrar Egreso';
+      });
+    });
+  </script>
+</body>
+</html>

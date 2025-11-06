@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sushi Tlalpan - Sistema Integrado</title>
+    <style>
+        :root {
+            --white: #ffffff;
+            --black: #000000;
+            --pink: #e94a7e;
+            --yellow: #f0d44c;
+            --blue: #41c5d3;
+            --dark-blue: #2c7a83;
+            --light-gray: #f0f2f5;
+            --text-color: #333;
+            --success-green: #28a745;
+            --error-red: #dc3545;
+            --warning-orange: #ffc107;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-image: url('https://previews.123rf.com/images/stolenpencil/stolenpencil1506/stolenpencil150600007/41960701-sushi-y-rollos-patr%C3%B3n-transparente-sobre-fondo-blanco.jpg');
+            background-repeat: repeat;
+            background-color: rgba(240, 242, 245, 0.85);
+            background-blend-mode: lighten;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .login-container {
+            background-color: rgba(255, 255, 255, 0.8);
+            width: 100%;
+            max-width: 400px;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: opacity 0.5s ease-out, transform 0.5s ease-in;
+        }
+        .login-container.success-out {
+            opacity: 0;
+            transform: scale(0.95) translateY(-20px);
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 20px;
+            width: 120px;
+        }
+        .logo-container img {
+            width: 100%;
+            height: auto;
+        }
+        h1 {
+            color: var(--text-color);
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 26px;
+            font-weight: 700;
+        }
+        form {
+            width: 100%;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            color: var(--text-color);
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 14px 15px;
+            border: 2px solid var(--yellow);
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 8px rgba(65, 197, 211, 0.5);
+            background-color: white;
+        }
+        .submit-btn {
+            width: 100%;
+            background-color: var(--pink);
+            color: var(--white);
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+            border: 2px solid transparent;
+        }
+        .submit-btn:hover {
+            background-color: white;
+            color: var(--pink);
+            border: 2px solid var(--pink);
+        }
+        .toggle-mode {
+            width: 100%;
+            background-color: transparent;
+            color: var(--blue);
+            border: 2px solid var(--blue);
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        .toggle-mode:hover {
+            background-color: var(--blue);
+            color: var(--white);
+        }
+        .message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+            display: none;
+        }
+        .message.success {
+            background-color: rgba(40, 167, 69, 0.2);
+            color: #155724;
+        }
+        .message.error {
+            background-color: rgba(220, 53, 69, 0.2);
+            color: #721c24;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 15px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            border: 3px solid rgba(65, 197, 211, 0.3);
+            border-top: 3px solid var(--blue);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .dashboard-container {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            background: var(--light-gray);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+        .dashboard-header {
+            background: linear-gradient(90deg, var(--blue), var(--dark-blue));
+            color: var(--white);
+            padding: 0 30px;
+            height: 70px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .header-left, .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .header-left .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-info svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--white);
+        }
+        .user-info span {
+            font-size: 18px;
+        }
+        .user-info strong {
+            font-weight: 700;
+        }
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: rgba(0,0,0,0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--warning-orange);
+            animation: pulse 2s infinite;
+        }
+        .status-dot.connected {
+            background-color: var(--success-green);
+        }
+        .status-dot.disconnected {
+            background-color: var(--error-red);
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        }
+        .header-right .time-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 16px;
+        }
+        .time-info #header-time {
+            font-weight: 700;
+            background-color: rgba(255,255,255,0.15);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .header-right .logout-btn {
+            background: rgba(255, 255, 255, 0.95);
+            color: var(--pink);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 15px;
+            transition: all 0.3s ease;
+        }
+        .logout-btn:hover {
+            background-color: var(--white);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .dashboard-content {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+        .main-content {
+            flex: 1;
+            overflow: hidden;
+        }
+        .page-viewer {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        /* MODIFICACIÓN: Estilos para el indicador de estado en el login */
+        .login-server-status {
+            margin-top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background-color: rgba(0,0,0,0.05);
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--text-color);
+        }
+        .login-server-status .status-dot {
+            animation: none; /* Sin pulso en el login */
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container" id="loginScreen">
+        <div class="logo-container">
+            <img src="https://i.postimg.cc/gJSvX4nQ/image.png" alt="Sushi Tlalpan Logo">
+        </div>
+        <h1 id="loginTitle">Iniciar Sesión</h1>
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="input-group">
+                <label for="username">Usuario</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+            </div>
+            <div class="input-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="submit-btn" id="submitBtn">Entrar</button>
+            <button type="button" class="toggle-mode" id="toggleMode" onclick="toggleLoginMode()">
+                Cambiar a Administrador
+            </button>
+        </form>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Verificando...</p>
+        </div>
+        <div id="message" class="message"></div>
+        <!-- MODIFICACIÓN: Indicador de estado del servidor en el login -->
+        <div class="login-server-status">
+            <div class="status-dot" id="loginConnectionStatusIndicator"></div>
+            <span id="loginConnectionStatusText">Verificando conexión...</span>
+        </div>
+    </div>
+
+    <div class="dashboard-container" id="dashboardScreen">
+        <div class="dashboard-header">
+            <div class="header-left">
+                <div class="user-info">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                    <span id="welcomeMessage">Usuario: <strong></strong></span>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <div class="time-info">
+                    <span id="header-date"></span>
+                    <span id="header-time"></span>
+                </div>
+                <div class="connection-status">
+                    <div class="status-dot" id="connectionStatusIndicator"></div>
+                    <span id="connectionStatusText">Verificando...</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+        <div class="dashboard-content">
+            <div class="main-content">
+                <iframe id="pageFrame" class="page-viewer" src="" title="Visor de Páginas"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const NGROK_URL = 'https://verbally-sound-chamois.ngrok-free.app';
+        let isAdminMode = false;
+
+        function toggleLoginMode() {
+            isAdminMode = !isAdminMode;
+            const title = document.getElementById('loginTitle');
+            const toggleBtn = document.getElementById('toggleMode');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (isAdminMode) {
+                title.textContent = 'Acceso Administrador';
+                toggleBtn.textContent = 'Cambiar a Usuario';
+                submitBtn.style.backgroundColor = 'var(--blue)';
+            } else {
+                title.textContent = 'Iniciar Sesión';
+                toggleBtn.textContent = 'Cambiar a Administrador';
+                submitBtn.style.backgroundColor = 'var(--pink)';
+            }
+            hideMessage();
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const loading = document.getElementById('loading');
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            if (!username || !password) {
+                showMessage('Por favor, complete todos los campos', 'error');
+                return;
+            }
+            
+            loading.classList.add('show');
+            hideMessage();
+            
+            try {
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                const endpoint = isAdminMode ? '/admin-login' : '/login';
+                
+                const response = await fetch(`${NGROK_URL}${endpoint}`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    sessionStorage.setItem('loggedInUser', result.username);
+                    showMessage(result.message, 'success');
+                    
+                    document.getElementById('loginScreen').classList.add('success-out');
+                    
+                    setTimeout(() => {
+                        showDashboard(result.username, result.user_type);
+                        document.getElementById('loginScreen').classList.remove('success-out');
+                    }, 500);
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error de conexión: ${error.message}`, 'error');
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        function showDashboard(username, userType) {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('dashboardScreen').style.display = 'block';
+            document.querySelector('#welcomeMessage strong').textContent = username;
+            
+            const pageFrame = document.getElementById('pageFrame');
+            pageFrame.src = userType === 'administrador' ? 'Menu Admin.html' : 'Menu Cliente.html';
+        }
+
+        function logout() {
+            sessionStorage.removeItem('loggedInUser');
+            document.getElementById('dashboardScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('loginForm').reset();
+            hideMessage();
+            document.getElementById('pageFrame').src = '';
+        }
+
+        function updateClock() {
+            const dateElem = document.getElementById('header-date');
+            const timeElem = document.getElementById('header-time');
+            if (!dateElem || !timeElem) return;
+            const now = new Date();
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+            dateElem.textContent = now.toLocaleDateString('es-ES', dateOptions);
+            timeElem.textContent = now.toLocaleTimeString('es-ES', timeOptions);
+        }
+
+        async function checkServerStatus() {
+            // Indicadores de estado (para login y para el dashboard)
+            const loginIndicator = document.getElementById('loginConnectionStatusIndicator');
+            const loginText = document.getElementById('loginConnectionStatusText');
+            const dashboardIndicator = document.getElementById('connectionStatusIndicator');
+            const dashboardText = document.getElementById('connectionStatusText');
+
+            try {
+                const response = await fetch(`${NGROK_URL}/`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+                if (response.ok) {
+                    if (loginIndicator) loginIndicator.className = 'status-dot connected';
+                    if (loginText) loginText.textContent = 'Servidor Conectado';
+                    if (dashboardIndicator) dashboardIndicator.className = 'status-dot connected';
+                    if (dashboardText) dashboardText.textContent = 'Servidor Conectado';
+                } else {
+                    throw new Error('Respuesta no exitosa');
+                }
+            } catch (error) {
+                if (loginIndicator) loginIndicator.className = 'status-dot disconnected';
+                if (loginText) loginText.textContent = 'Servidor Desconectado';
+                if (dashboardIndicator) dashboardIndicator.className = 'status-dot disconnected';
+                if (dashboardText) dashboardText.textContent = 'Servidor Desconectado';
+            }
+        }
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
+        }
+        
+        function hideMessage() {
+            document.getElementById('message').style.display = 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkServerStatus();
+            updateClock();
+            setInterval(updateClock, 1000);
+            setInterval(checkServerStatus, 30000); // Verifica cada 30 segundos
+        });
+    </script>
+</body>
+</html>

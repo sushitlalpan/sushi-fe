@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Panel de Administración - Cierre de Caja</title>
+    <style>
+        :root {
+            --white: #ffffff;
+            --black: #000000;
+            --pink: #e94a7e;
+            --yellow: #f0d44c;
+            --blue: #41c5d3;
+            --gray: #f0f0f0;
+            --vivid-green: #7FFF7F;
+            --vivid-red: #FF6347;
+        }
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--gray); }
+        header { background-color: var(--blue); color: var(--white); padding: 20px; text-align: center; }
+        h1 { margin: 0; font-size: 24px; }
+        .table-container { padding: 30px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); border-radius: 8px; overflow: hidden; }
+        thead { background-color: var(--blue); color: white; }
+        th, td { padding: 10px 12px; border: 1px solid #ccc; font-size: 14px; text-align: center; vertical-align: middle; }
+        tbody tr:nth-child(even) { background-color: #f9f9f9; }
+        tbody tr:hover { background-color: #eef8fb; }
+        .hide-column { display: none; }
+        .color-select { width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ccc; background-color: var(--white); cursor: pointer; }
+        tr[data-status="green"] { background-color: var(--vivid-green) !important; }
+        tr[data-status="red"] { background-color: var(--vivid-red) !important; }
+        tr[data-status="white"] { background-color: var(--white) !important; }
+        tr[data-status="white"]:nth-child(even) { background-color: #f9f9f9 !important; }
+        tr[data-status="white"]:hover { background-color: #eef8fb !important; }
+        .summary-row { font-weight: bold; background-color: #e0e0e0; }
+        .summary-row.total { background-color: #c9e6f1; }
+        .summary-row.average { background-color: #f0e6c9; }
+        .filters-container { padding: 20px 30px; background-color: var(--white); margin: 20px 30px 0; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 14px; font-weight: bold; color: #333; }
+        .filters-container input[type="date"], .filters-container select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        .filters-container button { padding: 10px 15px; background-color: var(--blue); color: var(--white); border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background-color 0.3s ease; }
+        .filters-container button:hover { background-color: #31a7b3; }
+        .observation-cell { width: 150px; }
+        .observation-input { width: calc(100% - 10px); padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <main id="main-content">
+        <header>
+            <h1>Panel de Administración - Cierre de Caja</h1>
+        </header>
+
+        <div class="filters-container">
+            <div class="filter-group">
+                <label for="startDate">Fecha de Corte (Desde):</label>
+                <input type="date" id="startDate">
+            </div>
+            <div class="filter-group">
+                <label for="endDate">Fecha de Corte (Hasta):</label>
+                <input type="date" id="endDate">
+            </div>
+            <div class="filter-group">
+                <label for="sucursalFilter">Filtrar por Sucursal:</label>
+                <select id="sucursalFilter">
+                    <option value="">Todas las Sucursales</option>
+                </select>
+            </div>
+            <button id="applyFilters">Aplicar Filtros</button>
+            <button id="clearFilters">Limpiar Filtros</button>
+            <!-- BOTÓN MODIFICADO -->
+            <button id="downloadExcelBtn">Descargar Excel Formateado</button>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="hide-column">ID</th>
+                        <th>FECHA DE CORTE</th>
+                        <th>NO. CIERRE</th>
+                        <th>VENTAS TOTALES</th>
+                        <th>TARJETA SEGÚN ITPV</th>
+                        <th>DEVOLUCIÓN EN TARJETA</th>
+                        <th>TARJETA / KIWI</th>
+                        <th>TRANSFER</th>
+                        <th>TOTAL TARJETA REAL</th>
+                        <th>EFECTIVO</th>
+                        <th>DEVOLUCIÓN EN EFECTIVO</th>
+                        <th>TOTAL EN EFECTIVO REAL</th>
+                        <th>DIFERENCIA REVISAR</th>
+                        <th>SUCURSAL</th>
+                        <th>NO. PAGOS</th>
+                        <th>TICKET PROMEDIO</th>
+                        <th>TOTAL COMISIÓN KIWI</th>
+                        <th>TOTAL SIN COMISIÓN</th>
+                        <th>TOTAL DE INGRESOS</th>
+                        <th>NOTAS</th>
+                        <th>ESTADO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </main>
+    
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        loadData();
+    });
+
+    const apiUrl = 'http://127.0.0.1:8080/cierre-caja/list';
+    const downloadUrl = 'http://127.0.0.1:8080/cierre-caja/download';
+
+    const tableBody = document.querySelector('tbody');
+    const tableHeaderRow = document.querySelector('thead tr');
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const sucursalFilterSelect = document.getElementById('sucursalFilter');
+    const applyFiltersBtn = document.getElementById('applyFilters');
+    const clearFiltersBtn = document.getElementById('clearFilters');
+    const downloadExcelBtn = document.getElementById('downloadExcelBtn');
+    
+    let allTableRowsData = [];
+    let currentFilteredAndRenderedRows = [];
+    let currentHeaderColCount = 21;
+    
+    const columnsToAggregate = {
+        'ventasTotales': 3, 'tarjetaSegunITPV': 4, 'devolucionTarjeta': 5,
+        'tarjetaKiwi': 6, 'transfer': 7, 'totalTarjetaReal': 8, 'efectivo': 9,
+        'devolucionEfectivo': 10, 'totalEfectivoReal': 11, 'ticketPromedio': 15,
+        'totalComisionKiwi': 16, 'totalSinComision': 17, 'totalIngresos': 18
+    };
+    const currencyColumns = [
+        'ventasTotales', 'tarjetaSegunITPV', 'devolucionTarjeta', 'tarjetaKiwi',
+        'transfer', 'totalTarjetaReal', 'efectivo', 'devolucionEfectivo',
+        'totalEfectivoReal', 'totalComisionKiwi', 'totalSinComision', 'totalIngresos'
+    ];
+
+    function parseNumber(value) {
+        if (typeof value === 'string') {
+            value = value.replace('$', '').replace(/\./g, '').replace(/,/g, '.');
+        }
+        const num = parseFloat(value);
+        return isNaN(num) ? 0 : num;
+    }
+
+    function formatCurrency(value) {
+        return value.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    function formatNumber(value, decimalPlaces = 2) {
+        return value.toLocaleString('es-CO', { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces });
+    }
+
+    function updateTableHeader(showObservationColumn) {
+        const observationHeader = document.querySelector('.observation-header');
+        if (showObservationColumn && !observationHeader) {
+            const newTh = document.createElement('th');
+            newTh.textContent = 'OBSERVACIÓN';
+            newTh.classList.add('observation-header');
+            tableHeaderRow.appendChild(newTh);
+            currentHeaderColCount = 22;
+        } else if (!showObservationColumn && observationHeader) {
+            observationHeader.remove();
+            currentHeaderColCount = 21;
+        }
+    }
+
+    function formatDateForDisplay(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+        const correctedDate = new Date(date.getTime() + userTimezoneOffset);
+        return correctedDate.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function normalizeDate(dateString) {
+        if (!dateString) return null;
+        const [year, month, day] = dateString.split('-').map(Number);
+        return new Date(Date.UTC(year, month - 1, day));
+    }
+
+    async function loadData() {
+        try {
+            const response = await fetch(apiUrl);
+            if (!response.ok) throw new Error(`Error de red: ${response.status}`);
+            
+            const data = await response.json();
+            const records = data.registros || [];
+
+            if (records.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="${currentHeaderColCount}" class="no-data-cell">No hay datos para mostrar.</td></tr>`;
+                return;
+            }
+
+            allTableRowsData = records.map((record, i) => {
+                const rowDataObject = {
+                    id: `row-${i}`,
+                    fechaCorte: record['FECHA DE CORTE'] || '',
+                    noCierre: record['NO. CIERRE'] || '',
+                    ventasTotales: record['VENTAS TOTALES'] || 0,
+                    tarjetaSegunITPV: record['TARJETA SEGÚN ITPV'] || 0,
+                    devolucionTarjeta: record['DEVOLUCIÓN EN TARJETA'] || 0,
+                    tarjetaKiwi: record['TARJETA/ KIWI'] || 0,
+                    transfer: record['TRANSFER'] || 0,
+                    totalTarjetaReal: record['TOTAL TARJETA REAL'] || 0,
+                    efectivo: record['EFECTIVO'] || 0,
+                    devolucionEfectivo: record['DEVOLUCIÓN EN EFECTIVO'] || 0,
+                    totalEfectivoReal: record['TOTAL EN EFECTIVO REAL'] || 0,
+                    diferenciaRevisar: record['DIFERENCIA REVISAR'] || '',
+                    sucursal: record['SUCURSAL'] || '',
+                    noPagos: record['NO. PAGOS'] || 0,
+                    ticketPromedio: record['TICKET PROMEDIO'] || 0,
+                    totalComisionKiwi: record['TOTAL COMISIÓN KIWI'] || 0,
+                    totalSinComision: record['TOTAL SIN COMISIÓN'] || 0,
+                    totalIngresos: record['TOTAL DE INGRESOS'] || 0,
+                    notas: record['NOTAS'] || '',
+                    status: 'white',
+                    observation: ''
+                };
+                return rowDataObject;
+            });
+            
+            const uniqueSucursales = new Set(allTableRowsData.map(row => row.sucursal).filter(Boolean));
+            populateSucursalFilter(uniqueSucursales);
+            renderTable(allTableRowsData);
+
+        } catch (error) {
+            console.error('Error al cargar los datos:', error);
+            tableBody.innerHTML = `<tr><td colspan="${currentHeaderColCount}" class="no-data-cell">Error al cargar datos: ${error.message}.</td></tr>`;
+        }
+    }
+    
+    function renderTable(dataToRender) {
+        tableBody.innerHTML = '';
+        currentFilteredAndRenderedRows = dataToRender;
+        const needsObservationColumn = dataToRender.some(row => row.status === 'red');
+        updateTableHeader(needsObservationColumn);
+
+        if (dataToRender.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="${currentHeaderColCount}" class="no-data-cell">No hay datos que coincidan con los filtros.</td></tr>`;
+            return;
+        }
+
+        dataToRender.forEach(rowData => {
+            const newRow = tableBody.insertRow();
+            newRow.dataset.status = rowData.status;
+            newRow.dataset.rowId = rowData.id;
+            
+            const appendCell = (content, isHidden = false, isCurrency = false) => {
+                const cell = newRow.insertCell();
+                cell.textContent = isCurrency ? formatCurrency(parseNumber(content)) : content;
+                if(isHidden) cell.classList.add('hide-column');
+            };
+
+            appendCell(rowData.id, true);
+            appendCell(formatDateForDisplay(rowData.fechaCorte));
+            appendCell(rowData.noCierre);
+            appendCell(rowData.ventasTotales, false, true);
+            appendCell(rowData.tarjetaSegunITPV, false, true);
+            appendCell(rowData.devolucionTarjeta, false, true);
+            appendCell(rowData.tarjetaKiwi, false, true);
+            appendCell(rowData.transfer, false, true);
+            appendCell(rowData.totalTarjetaReal, false, true);
+            appendCell(rowData.efectivo, false, true);
+            appendCell(rowData.devolucionEfectivo, false, true);
+            appendCell(rowData.totalEfectivoReal, false, true);
+            appendCell(rowData.diferenciaRevisar);
+            appendCell(rowData.sucursal);
+            appendCell(rowData.noPagos);
+            appendCell(formatNumber(parseNumber(rowData.ticketPromedio)));
+            appendCell(rowData.totalComisionKiwi, false, true);
+            appendCell(rowData.totalSinComision, false, true);
+            appendCell(rowData.totalIngresos, false, true);
+            appendCell(rowData.notas);
+            
+            const statusCell = newRow.insertCell();
+            const selectElement = document.createElement('select');
+            selectElement.className = 'color-select';
+            selectElement.innerHTML = `<option value="white">Blanco</option><option value="green">Verde</option><option value="red">Rojo</option>`;
+            selectElement.value = rowData.status;
+            statusCell.appendChild(selectElement);
+
+            if(needsObservationColumn){
+                const observationCell = newRow.insertCell();
+                observationCell.className = 'observation-cell';
+                const observationInput = document.createElement('input');
+                observationInput.type = 'text';
+                observationInput.className = 'observation-input';
+                observationInput.placeholder = 'Escribir observación...';
+                observationInput.value = rowData.observation;
+                observationInput.addEventListener('input', function() {
+                    const targetRow = allTableRowsData.find(r => r.id === newRow.dataset.rowId);
+                    if (targetRow) targetRow.observation = this.value;
+                });
+                observationCell.appendChild(observationInput);
+                observationCell.style.display = (rowData.status === 'red') ? '' : 'none';
+            }
+
+            selectElement.addEventListener('change', function() {
+                const selectedStatus = this.value;
+                const targetRow = allTableRowsData.find(r => r.id === newRow.dataset.rowId);
+                if (targetRow) {
+                    targetRow.status = selectedStatus;
+                    if (selectedStatus !== 'red') targetRow.observation = '';
+                }
+                applyFilters();
+            });
+        });
+    }
+
+    function populateSucursalFilter(uniqueSucursales) {
+        sucursalFilterSelect.innerHTML = '<option value="">Todas las Sucursales</option>';
+        Array.from(uniqueSucursales).sort().forEach(sucursal => {
+            sucursalFilterSelect.innerHTML += `<option value="${sucursal}">${sucursal}</option>`;
+        });
+    }
+
+    function applyFilters() {
+        const filterStartDate = startDateInput.value ? normalizeDate(startDateInput.value) : null;
+        const filterEndDate = endDateInput.value ? normalizeDate(endDateInput.value) : null;
+        const selectedSucursal = sucursalFilterSelect.value;
+        const filteredRows = allTableRowsData.filter(row => {
+            const rowDateNormalized = normalizeDate(row.fechaCorte);
+            const dateMatch = (!filterStartDate || (rowDateNormalized && rowDateNormalized >= filterStartDate)) &&
+                              (!filterEndDate || (rowDateNormalized && rowDateNormalized <= filterEndDate));
+            const sucursalMatch = !selectedSucursal || row.sucursal === selectedSucursal;
+            return dateMatch && sucursalMatch;
+        });
+        renderTable(filteredRows);
+    }
+
+    function clearFilters() {
+        startDateInput.value = '';
+        endDateInput.value = '';
+        sucursalFilterSelect.value = '';
+        renderTable(allTableRowsData);
+    }
+
+    async function downloadExcel() {
+        if (currentFilteredAndRenderedRows.length === 0) {
+            alert("No hay datos para descargar.");
+            return;
+        }
+        try {
+            const response = await fetch(downloadUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentFilteredAndRenderedRows)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Error al generar el archivo.');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'reporte_ventas_formateado.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+
+        } catch (error) {
+            console.error('Error en la descarga:', error);
+            alert(`No se pudo descargar el archivo: ${error.message}`);
+        }
+    }
+
+    applyFiltersBtn.addEventListener('click', applyFilters);
+    clearFiltersBtn.addEventListener('click', clearFilters);
+    downloadExcelBtn.addEventListener('click', downloadExcel);
+
+    </script>
+</body>
+</html>

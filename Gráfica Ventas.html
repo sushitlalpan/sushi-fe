@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<title>Panel Profesional - Ventas</title>
+
+	<style>
+		:root {
+			--white: #ffffff; --black: #111; --blue: #3498db; --dark-blue: #2980b9;
+			--green: #2ecc71; --purple: #9b59b6; --orange: #e67e22; --red: #e74c3c;
+			--yellow: #f1c40f; --light-gray: #f9f9f9; --box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+			--border-radius: 12px;
+		}
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+		body { font-family: 'Segoe UI', sans-serif; background-color: var(--light-gray); color: var(--black); line-height: 1.6; }
+		header { background: linear-gradient(to right, var(--blue), var(--dark-blue)); color: white; padding: 30px 20px; text-align: center; }
+		h1 { font-size: 28px; margin: 0; }
+		.filters { display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; padding: 20px; background: var(--white); box-shadow: var(--box-shadow); border-radius: var(--border-radius); margin: 20px; }
+		.filters select, .filters input[type="date"] { padding: 10px; font-size: 16px; border-radius: 6px; border: 1px solid #ccc; min-width: 180px; }
+		.chart-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(600px, 1fr)); gap: 30px; padding: 20px; }
+		.chart-box { background: white; border-radius: var(--border-radius); box-shadow: var(--box-shadow); padding: 30px; }
+		canvas { max-width: 100%; height: 400px !important; }
+		.chart-title { font-size: 20px; font-weight: bold; margin-bottom: 15px; color: var(--blue); text-align: center; }
+	</style>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <main id="main-content">
+        <header>
+            <h1>Panel Profesional - Análisis de Ventas</h1>
+        </header>
+        <div class="filters">
+            <select id="filtroSucursal"><option value="all">Cargando sucursales...</option></select>
+            <input type="date" id="fechaInicio" />
+            <input type="date" id="fechaFin" />
+        </div>
+        <div class="chart-container">
+            <div class="chart-box"><div class="chart-title">Ventas Diarias</div><canvas id="ventasDiarias"></canvas></div>
+            <div class="chart-box"><div class="chart-title">Ticket Promedio por Día</div><canvas id="ticketPromedioSemanal"></canvas></div>
+            <div class="chart-box"><div class="chart-title">Ventas Acumuladas Mensuales</div><canvas id="ventasMensuales"></canvas></div>
+            <div class="chart-box"><div class="chart-title">Efectivo vs Tarjeta (Diario)</div><canvas id="efectivoVsTarjetaDiario"></canvas></div>
+            <div class="chart-box"><div class="chart-title">Ventas por Día de la Semana</div><canvas id="ventasPorDiaSemana"></canvas></div>
+            <div class="chart-box"><div class="chart-title">Distribución de Ventas por Sucursal</div><canvas id="ventasPorSucursalDonut"></canvas></div>
+        </div>
+    </main>
+
+	<script>
+		// ⚠️ IMPORTANTE: Cambia esta URL por la que te da Ngrok
+		const SERVER_URL = 'https://verbally-sound-chamois.ngrok-free.app';
+		let originalData = [];
+
+        document.addEventListener("DOMContentLoaded", function() {
+            initializeDashboard();
+        });
+
+        async function initializeDashboard() {
+            await populateSucursalFilter();
+            await loadSalesData();
+            document.querySelectorAll('.filters input, .filters select').forEach(el => {
+                el.addEventListener('change', () => renderCharts(filterData()));
+            });
+        }
+		
+		function parseNumber(value) {
+			return parseFloat(String(value).replace(/[^0-9.-]/g, '')) || 0;
+		}
+
+		async function loadSalesData() {
+		    try {
+		        const response = await fetch(`${SERVER_URL}/cierre-caja/list`, {
+		            headers: { 'ngrok-skip-browser-warning': 'true' }
+		        });
+		        
+		        if (!response.ok) {
+		            // Si el servidor responde con un error (ej. 404, 500), lo capturamos aquí.
+		            throw new Error(`Error de Red/Servidor: ${response.status} ${response.statusText}`);
+		        }
+		        
+		        const data = await response.json(); // El error de JSON inválido (NaN) ocurrirá aquí.
+		        
+		        originalData = data.registros.map((record, index) => {
+		            try {
+		                const fecha = new Date(record['FECHA DE CORTE'] + 'T00:00:00');
+		                if (isNaN(fecha.getTime()) || !record.SUCURSAL) {
+		                    return null;
+		                }
+		                return {
+		                    sucursal: record.SUCURSAL,
+		                    fecha: fecha,
+		                    ventasTotales: parseNumber(record['VENTAS TOTALES']),
+		                    totalEfectivoReal: parseNumber(record['TOTAL EN EFECTIVO REAL']),
+		                    ticketPromedio: parseNumber(record['TICKET PROMEDIO']),
+		                    totalTarjetaReal: parseNumber(record['TOTAL TARJETA REAL']),
+		                    transfer: parseNumber(record['TRANSFER']),
+		                    comisionKiwi: parseNumber(record['TOTAL COMISIÓN KIWI'])
+		                };
+		            } catch (e) {
+		                console.error(`Error procesando el registro #${index+2} en Excel:`, record, e);
+		                return null;
+		            }
+		        }).filter(Boolean);
+
+		        renderCharts(originalData);
+
+		    } catch (error) {
+		        // --- NUEVO MÉTODO DE DIAGNÓSTICO ---
+		        console.error('DIAGNÓSTICO DE ERROR:', error);
+		        
+		        if (error instanceof SyntaxError) {
+		            // Este error solo ocurre si el servidor envía 'NaN'.
+		            alert("¡PROBLEMA ENCONTRADO! (SyntaxError)\n\nEl servidor `app.py` que está corriendo es una versión ANTIGUA.\n\nSOLUCIÓN: Cierra la terminal de `app.py` (con Ctrl+C) y vuelve a iniciarla.");
+		        } else if (error instanceof TypeError) {
+		            // Este error suele ser por problemas de conexión.
+		            alert("¡PROBLEMA ENCONTRADO! (TypeError)\n\nNo se pudo conectar con el servidor.\n\nSOLUCIÓN: Verifica que `ngrok` esté corriendo y que la URL en el archivo HTML sea la correcta.");
+		        } else {
+		            // Captura otros errores, como los 502 de ngrok si app.py no corre.
+		            alert(`¡PROBLEMA ENCONTRADO! (Error de Conexión)\n\n${error.message}\n\nSOLUCIÓN: Asegúrate de que tanto 'app.py' como 'ngrok' estén corriendo sin errores.`);
+		        }
+		    }
+		}
+
+		async function populateSucursalFilter() {
+			try {
+				const response = await fetch(`${SERVER_URL}/branches`, {
+					headers: { 'ngrok-skip-browser-warning': 'true' }
+				});
+				const data = await response.json();
+				const select = document.getElementById('filtroSucursal');
+
+				if (data.branches && data.branches.length > 0) {
+					select.innerHTML = '<option value="all">Todas las Sucursales</option>';
+					data.branches.forEach(s => {
+						select.innerHTML += `<option value="${s}">${s}</option>`;
+					});
+				} else {
+					select.innerHTML = '<option value="all">No hay sucursales</option>';
+				}
+			} catch (error) {
+				console.error('Error al cargar sucursales:', error);
+				document.getElementById('filtroSucursal').innerHTML = '<option value="all">Error al cargar</option>';
+			}
+		}
+
+		function filterData() {
+			const sucursal = document.getElementById('filtroSucursal').value;
+			const fechaInicio = document.getElementById('fechaInicio').value;
+			const fechaFin = document.getElementById('fechaFin').value;
+            const start = fechaInicio ? new Date(fechaInicio + 'T00:00:00') : null;
+            const end = fechaFin ? new Date(fechaFin + 'T23:59:59') : null;
+
+			return originalData.filter(item => {
+				if (sucursal !== 'all' && item.sucursal !== sucursal) return false;
+				if (start && item.fecha < start) return false;
+				if (end && item.fecha > end) return false;
+				return true;
+			});
+		}
+        
+		function groupByDate(data, interval = 'day') {
+			return data.reduce((acc, item) => {
+				let key = '';
+				switch(interval) {
+					case 'day': key = item.fecha.toISOString().split('T')[0]; break;
+					case 'month': key = `${item.fecha.getFullYear()}-${String(item.fecha.getMonth()+1).padStart(2,'0')}`; break;
+					case 'weekday':
+						const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+						key = days[item.fecha.getDay()];
+						break;
+				}
+				acc[key] = acc[key] || { ventas: 0, ticketSuma: 0, ticketCount: 0, efectivo: 0, tarjeta: 0 };
+				acc[key].ventas += item.ventasTotales;
+				acc[key].ticketSuma += item.ticketPromedio;
+				acc[key].ticketCount += item.ticketCount > 0 ? 1 : (item.ticketPromedio > 0 ? 1 : 0);
+				acc[key].efectivo += item.totalEfectivoReal;
+				acc[key].tarjeta += item.totalTarjetaReal;
+				return acc;
+			}, {});
+		}
+
+		function groupBySucursal(data) {
+			return data.reduce((acc, item) => {
+				acc[item.sucursal] = (acc[item.sucursal] || 0) + item.ventasTotales;
+				return acc;
+			}, {});
+		}
+
+		function renderCharts(data) {
+			const chartIds = ['ventasDiarias', 'ticketPromedioSemanal', 'ventasMensuales', 'efectivoVsTarjetaDiario', 'ventasPorDiaSemana', 'ventasPorSucursalDonut'];
+			chartIds.forEach(id => {
+				const chart = Chart.getChart(id);
+				if (chart) chart.destroy();
+			});
+
+			const daily = groupByDate(data, 'day');
+			const dates = Object.keys(daily).sort();
+			const dailySales = dates.map(d => daily[d].ventas);
+			const dailyTicketAverage = dates.map(d => daily[d].ticketCount > 0 ? (daily[d].ticketSuma / daily[d].ticketCount) : 0);
+			const dailyCash = dates.map(d => daily[d].efectivo);
+			const dailyCard = dates.map(d => daily[d].tarjeta);
+			
+			const monthly = groupByDate(data, 'month');
+			const months = Object.keys(monthly).sort();
+			const monthlySales = months.map(m => monthly[m].ventas);
+			
+			const weekday = groupByDate(data, 'weekday');
+			const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+			const salesByDay = daysOfWeek.map(day => weekday[day]?.ventas || 0);
+			
+			const bySucursal = groupBySucursal(data);
+            const sucursalLabels = Object.keys(bySucursal);
+            const sucursalData = Object.values(bySucursal);
+			
+			const tooltipCallback = { plugins: { tooltip: { callbacks: { label: ctx => `$${ctx.parsed.y.toLocaleString('es-MX', {minimumFractionDigits: 2})}` } } } };
+            const tooltipDoughnut = { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString('es-MX')}` } } } };
+
+			new Chart('ventasDiarias', { type: 'line', data: { labels: dates, datasets: [{ label: 'Ventas Diarias', data: dailySales, borderColor: '#e94a7e', backgroundColor: 'rgba(233, 74, 126, 0.2)', fill: true, tension: 0.3 }] }, options: tooltipCallback });
+			new Chart('ticketPromedioSemanal', { type: 'bar', data: { labels: dates, datasets: [{ label: 'Ticket Promedio por Día', data: dailyTicketAverage, backgroundColor: '#f0d44c' }] }, options: tooltipCallback });
+			new Chart('ventasMensuales', { type: 'line', data: { labels: months, datasets: [{ label: 'Ventas Mensuales', data: monthlySales, borderColor: '#41c5d3', backgroundColor: 'rgba(65, 197, 211, 0.2)', fill: true, tension: 0.3 }] }, options: tooltipCallback });
+			new Chart('efectivoVsTarjetaDiario', { type: 'bar', data: { labels: dates, datasets: [{ label: 'Efectivo', data: dailyCash, backgroundColor: '#2ecc71' }, { label: 'Tarjeta', data: dailyCard, backgroundColor: '#9b59b6' }] }, options: { ...tooltipCallback, scales: { x: { stacked: true }, y: { stacked: true } } } });
+			new Chart('ventasPorDiaSemana', { type: 'radar', data: { labels: daysOfWeek, datasets: [{ label: 'Ventas por Día', data: salesByDay, borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.3)' }] }, options: tooltipCallback });
+			new Chart('ventasPorSucursalDonut', { type: 'doughnut', data: { labels: sucursalLabels, datasets: [{ data: sucursalData, backgroundColor: ['#e94a7e', '#f0d44c', '#41c5d3', '#9b59b6', '#3498db', '#e67e22', '#2ecc71'] }] }, options: tooltipDoughnut });
+		}
+	</script>
+</body>
+</html>

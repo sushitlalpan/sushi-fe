@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Registro de Ventas - Sushi Tlalpan</title>
+    <style>
+        :root {
+            --white: #ffffff;
+            --black: #000000;
+            --pink: #e94a7e;
+            --yellow: #f0d44c;
+            --blue: #41c5d3;
+            --calculated-bg: var(--yellow);
+        }
+        body {
+            background-image: url('https://previews.123rf.com/images/stolenpencil/stolenpencil1506/stolenpencil150600007/41960701-sushi-y-rollos-patr%C3%B3n-transparente-sobre-fondo-blanco.jpg');
+            background-repeat: repeat;
+            background-color: rgba(255, 255, 255, 0.7);
+            background-blend-mode: lighten;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .form-container {
+            background-color: rgba(255, 255, 255, 0.85);
+            width: 100%;
+            max-width: 650px;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            border: 3px solid var(--blue);
+            backdrop-filter: blur(8px);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            align-items: center;
+            /* MODIFICACIÓN: Aumentado el margen para mayor separación */
+            margin-bottom: 20px; 
+            gap: 15px;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: #444;
+        }
+        .input-group input,
+        .input-group textarea,
+        .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--yellow);
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
+        }
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 8px rgba(65, 197, 211, 0.4);
+        }
+        .input-group .calculated-value {
+            background-color: var(--calculated-bg);
+            font-weight: bold;
+            color: #333;
+        }
+        .submit-btn {
+            width: 100%;
+            background-color: var(--pink);
+            color: var(--white);
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.3s ease;
+        }
+        .submit-btn:hover {
+            background-color: #d43d71;
+        }
+        .submit-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>Formulario de Ventas</h1>
+        <form id="cierreForm" onsubmit="enviarDatos(event)">
+            <div class="input-group">
+                <label>Operador</label>
+                <select id="operador" name="operador" required>
+                    <option value="" disabled selected>Cargando...</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Fecha de Corte</label>
+                <input type="date" id="fecha" name="fecha" required>
+            </div>
+            <div class="input-group">
+                <label>N° Cierre</label>
+                <input type="text" id="numeroCierre" name="numeroCierre" required>
+            </div>
+            <div class="input-group">
+                <label>Ventas Totales</label>
+                <input type="number" id="ventasTotales" name="ventasTotales" step="0.01" required oninput="calcularValoresDerivados()">
+            </div>
+            <div class="input-group">
+                <label>Tarjeta/Kiwi</label>
+                <input type="text" id="tarjetaKiwi" name="tarjetaKiwi" placeholder="=100+200" oninput="calcularValoresDerivados()">
+            </div>
+            <div class="input-group">
+                <label>Transferencias</label>
+                <input type="text" id="transferencias" name="transferencias" placeholder="=100+200" oninput="calcularValoresDerivados()">
+            </div>
+            <div class="input-group">
+                <label>Devolución en Tarjeta</label>
+                <input type="number" id="devolucionTarjeta" name="devolucionTarjeta" step="0.01" value="0" oninput="calcularValoresDerivados()">
+            </div>
+            <div class="input-group">
+                <label>Total Tarjeta Real</label>
+                <input type="text" id="totalTarjetaReal" name="totalTarjetaReal" class="calculated-value" readonly>
+            </div>
+            <div class="input-group">
+                <label>Efectivo</label>
+                <input type="number" id="efectivo" name="efectivo" step="0.01" required oninput="calcularValoresDerivados()">
+            </div>
+            <div class="input-group">
+                <label>Devolución en Efectivo</label>
+                <input type="number" id="devolucionEfectivo" name="devolucionEfectivo" step="0.01" value="0" oninput="calcularValoresDerivados()">
+            </div>
+            <div class="input-group">
+                <label>Total en Efectivo Real</label>
+                <input type="text" id="totalEfectivoReal" name="totalEfectivoReal" class="calculated-value" readonly>
+            </div>
+            <div class="input-group">
+                <label>Diferencia a Revisar</label>
+                <input type="text" id="diferenciaRevisar" name="diferenciaRevisar" class="calculated-value" readonly>
+            </div>
+            <div class="input-group">
+                <label>Sucursal</label>
+                <select id="sucursal" name="sucursal" required>
+                    <option value="" disabled selected>Cargando...</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>N° Pagos</label>
+                <input type="number" id="numeroPagos" name="numeroPagos" oninput="calcularValoresDerivados()">
+            </div>
+            <div class="input-group">
+                <label>Ticket Promedio</label>
+                <input type="text" id="ticketPromedio" name="ticketPromedio" class="calculated-value" readonly>
+            </div>
+            <div class="input-group">
+                <label>Total Comisión Kiwi</label>
+                <input type="text" id="totalComisionKiwi" name="totalComisionKiwi" class="calculated-value" readonly>
+            </div>
+            <div class="input-group">
+                <label>Total sin Comisión</label>
+                <input type="text" id="totalSinComision" name="totalSinComision" class="calculated-value" readonly>
+            </div>
+            <div class="input-group">
+                <label>Total de Ingresos</label>
+                <input type="text" id="totalIngresos" name="totalIngresos" class="calculated-value" readonly>
+            </div>
+            <div class="input-group">
+                <label>Notas</label>
+                <textarea id="notas" name="notas" rows="3"></textarea>
+            </div>
+            <button type="submit" class="submit-btn" id="submitBtn">Enviar Reporte</button>
+        </form>
+    </div>
+
+    <script>
+        const SERVER_URL = 'https://verbally-sound-chamois.ngrok-free.app';
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            await cargarOperadoresYSeleccionarUsuario();
+            await cargarSucursales();
+            document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+        });
+
+        async function cargarOperadoresYSeleccionarUsuario() {
+            const operadorSelect = document.getElementById('operador');
+            const loggedInUser = sessionStorage.getItem('loggedInUser');
+
+            try {
+                const response = await fetch(`${SERVER_URL}/users`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+                const data = await response.json();
+                if (data.users && data.users.length > 0) {
+                    operadorSelect.innerHTML = '<option value="" disabled>Selecciona un operador</option>';
+                    data.users.sort().forEach(operador => {
+                        operadorSelect.innerHTML += `<option value="${operador}">${operador}</option>`;
+                    });
+
+                    if (loggedInUser && data.users.includes(loggedInUser)) {
+                        operadorSelect.value = loggedInUser;
+                        operadorSelect.disabled = true;
+                    } else if (loggedInUser) {
+                        operadorSelect.innerHTML += `<option value="${loggedInUser}">${loggedInUser}</option>`;
+                        operadorSelect.value = loggedInUser;
+                        operadorSelect.disabled = true;
+                    } else {
+                        operadorSelect.firstChild.selected = true;
+                    }
+
+                } else {
+                    operadorSelect.innerHTML = '<option value="" disabled selected>No hay operadores</option>';
+                }
+            } catch (error) {
+                operadorSelect.innerHTML = '<option value="" disabled selected>Error al cargar</option>';
+            }
+        }
+
+        async function cargarSucursales() {
+            const sucursalSelect = document.getElementById('sucursal');
+            try {
+                const response = await fetch(`${SERVER_URL}/branches`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+                const data = await response.json();
+                if (data.branches && data.branches.length > 0) {
+                    sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
+                    data.branches.sort().forEach(sucursal => {
+                        sucursalSelect.innerHTML += `<option value="${sucursal}">${sucursal}</option>`;
+                    });
+                } else {
+                    sucursalSelect.innerHTML = '<option value="" disabled selected>No hay sucursales</option>';
+                }
+            } catch (error) {
+                sucursalSelect.innerHTML = '<option value="" disabled selected>Error al cargar</option>';
+            }
+        }
+
+        function obtenerValorFormula(formula) {
+            if (!formula || !formula.startsWith('=')) return parseFloat(formula) || 0;
+            try {
+                return formula.slice(1).split('+').map(n => parseFloat(n.trim())).reduce((s, n) => s + (isNaN(n) ? 0 : n), 0);
+            } catch (e) { return 0; }
+        }
+
+        function calcularValoresDerivados() {
+            const ventasTotales = parseFloat(document.getElementById('ventasTotales').value) || 0;
+            const numeroPagos = parseInt(document.getElementById('numeroPagos').value) || 0;
+            const tarjetaKiwi = obtenerValorFormula(document.getElementById('tarjetaKiwi').value);
+            const transferencias = obtenerValorFormula(document.getElementById('transferencias').value);
+            const devTarjeta = parseFloat(document.getElementById('devolucionTarjeta').value) || 0;
+            const efectivo = parseFloat(document.getElementById('efectivo').value) || 0;
+            const devEfectivo = parseFloat(document.getElementById('devolucionEfectivo').value) || 0;
+
+            const totalTarjetaReal = tarjetaKiwi + transferencias - devTarjeta;
+            const totalEfectivoReal = efectivo - devEfectivo;
+            const diferenciaRevisar = (totalTarjetaReal + totalEfectivoReal) - ventasTotales;
+            const ticketPromedio = numeroPagos > 0 ? ventasTotales / numeroPagos : 0;
+            const totalComisionKiwi = tarjetaKiwi * 0.04;
+            const totalSinComision = tarjetaKiwi - totalComisionKiwi;
+            const totalIngresos = totalSinComision + transferencias + totalEfectivoReal;
+
+            document.getElementById('totalTarjetaReal').value = totalTarjetaReal.toFixed(2);
+            document.getElementById('totalEfectivoReal').value = totalEfectivoReal.toFixed(2);
+            document.getElementById('diferenciaRevisar').value = diferenciaRevisar.toFixed(2);
+            document.getElementById('ticketPromedio').value = ticketPromedio.toFixed(2);
+            document.getElementById('totalComisionKiwi').value = totalComisionKiwi.toFixed(2);
+            document.getElementById('totalSinComision').value = totalSinComision.toFixed(2);
+            document.getElementById('totalIngresos').value = totalIngresos.toFixed(2);
+        }
+
+        async function enviarDatos(event) {
+            event.preventDefault();
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Enviando...';
+            
+            const form = document.getElementById('cierreForm');
+            document.getElementById('operador').disabled = false;
+            const formData = new FormData(form);
+            document.getElementById('operador').disabled = true;
+
+            try {
+                const response = await fetch(`${SERVER_URL}/cierre-caja`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Reporte guardado exitosamente');
+                    form.reset();
+                    document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+                    await cargarOperadoresYSeleccionarUsuario();
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                alert('Error de conexión con el servidor.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Enviar Reporte';
+            }
+        }
+    </script>
+</body>
+</html>
