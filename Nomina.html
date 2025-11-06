@@ -148,7 +148,7 @@
   </div>
 
   <script>
-    const backendApiBaseUrl = 'https://verbally-sound-chamois.ngrok-free.app';
+    const backendApiBaseUrl = window.env.API_URL;
     const operadoresUrl = `${backendApiBaseUrl}/users`;
     const sucursalesUrl = `${backendApiBaseUrl}/branches`;
     const nominaUrl = `${backendApiBaseUrl}/nomina`;

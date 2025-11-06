@@ -109,8 +109,8 @@
         loadData();
     });
 
-    const apiUrl = 'http://127.0.0.1:8080/cierre-caja/list';
-    const downloadUrl = 'http://127.0.0.1:8080/cierre-caja/download';
+    const apiUrl = `${window.env.API_URL}/cierre-caja/list`;
+    const downloadUrl = `${window.env.API_URL}/cierre-caja/download`;
 
     const tableBody = document.querySelector('tbody');
     const tableHeaderRow = document.querySelector('thead tr');

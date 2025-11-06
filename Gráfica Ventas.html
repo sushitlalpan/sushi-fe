@@ -48,7 +48,7 @@
 
 	<script>
 		// ⚠️ IMPORTANTE: Cambia esta URL por la que te da Ngrok
-		const SERVER_URL = 'https://verbally-sound-chamois.ngrok-free.app';
+		const SERVER_URL = window.env.API_URL;
 		let originalData = [];
 
         document.addEventListener("DOMContentLoaded", function() {

@@ -183,7 +183,7 @@
     </div>
 
     <script>
-        const SERVER_URL = 'https://verbally-sound-chamois.ngrok-free.app';
+        const SERVER_URL = window.env.API_URL;
 
         window.addEventListener('DOMContentLoaded', async () => {
             await cargarOperadoresYSeleccionarUsuario();

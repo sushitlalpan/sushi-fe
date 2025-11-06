@@ -95,9 +95,9 @@
     document.addEventListener("DOMContentLoaded", function() {
         loadData();
     });
-        
-    const apiUrl = 'http://127.0.0.1:8080/egresos/list';
-    const downloadUrl = 'http://127.0.0.1:8080/egresos/download';
+    
+    const apiUrl = `${window.env.API_URL}/egresos/list`;
+    const downloadUrl = `${window.env.API_URL}/egresos/download`;
 
     const tableBody = document.querySelector('tbody');
     const tableHeaderRow = document.querySelector('thead tr');
