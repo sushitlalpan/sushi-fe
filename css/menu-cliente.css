@@ -1,0 +1,142 @@
+:root {
+  --white: #ffffff;
+  --black: #000000;
+  --pink: #e94a7e;
+  --yellow: #f0d44c;
+  --blue: #41c5d3;
+  --gray-light: #f4f4f4;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --card-hover: rgba(65, 197, 211, 0.05);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-image: url('https://previews.123rf.com/images/stolenpencil/stolenpencil1506/stolenpencil150600007/41960701-sushi-y-rollos-patrón-transparente-sobre-fondo-blanco.jpg');
+  background-repeat: repeat;
+  background-color: rgba(255, 255, 255, 0.7);
+  background-blend-mode: lighten;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.menu-container {
+  background-color: rgba(255, 255, 255, 0.98);
+  width: 100%;
+  max-width: 600px;
+  border-radius: 20px;
+  padding: 35px 30px;
+  box-shadow: 0 25px 60px var(--shadow);
+  border: 3px solid var(--blue);
+  backdrop-filter: blur(12px);
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.logo-container {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.logo-container img {
+  width: 160px;
+  height: auto;
+  transition: transform 0.3s ease;
+  border-radius: 12px;
+}
+
+.logo-container img:hover {
+  transform: rotate(2deg) scale(1.05);
+}
+
+h1 {
+  color: var(--black);
+  font-size: 26px;
+  margin-bottom: 30px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.grid-menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.menu-card {
+  background-color: var(--white);
+  border: 2px solid var(--blue);
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.menu-card:hover {
+  background-color: var(--blue);
+  color: var(--white);
+  transform: translateY(-4px);
+  border-color: transparent;
+}
+
+.menu-card i {
+  font-size: 28px;
+  margin-bottom: 10px;
+  transition: transform 0.3s ease;
+  color: var(--blue);
+}
+
+.menu-card:hover i {
+  transform: scale(1.1) rotate(5deg);
+  color: var(--white);
+}
+
+.menu-card span {
+  font-size: 16px;
+  font-weight: 600;
+  display: block;
+}
+
+.menu-card::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.3) 10%, transparent 60%);
+  transform: translateY(-50%) rotate(-45deg);
+  transition: left 0.5s ease;
+}
+
+.menu-card:hover::after {
+  left: 150%;
+}
+
+.bottom-bar {
+  height: 8px;
+  background: linear-gradient(to right, var(--white), var(--black), var(--pink), var(--yellow), var(--blue));
+  border-radius: 4px;
+  margin-top: 30px;
+}

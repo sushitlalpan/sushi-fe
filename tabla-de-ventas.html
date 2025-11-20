@@ -4,45 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Panel de Administración - Cierre de Caja</title>
-    <style>
-        :root {
-            --white: #ffffff;
-            --black: #000000;
-            --pink: #e94a7e;
-            --yellow: #f0d44c;
-            --blue: #41c5d3;
-            --gray: #f0f0f0;
-            --vivid-green: #7FFF7F;
-            --vivid-red: #FF6347;
-        }
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--gray); }
-        header { background-color: var(--blue); color: var(--white); padding: 20px; text-align: center; }
-        h1 { margin: 0; font-size: 24px; }
-        .table-container { padding: 30px; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); border-radius: 8px; overflow: hidden; }
-        thead { background-color: var(--blue); color: white; }
-        th, td { padding: 10px 12px; border: 1px solid #ccc; font-size: 14px; text-align: center; vertical-align: middle; }
-        tbody tr:nth-child(even) { background-color: #f9f9f9; }
-        tbody tr:hover { background-color: #eef8fb; }
-        .hide-column { display: none; }
-        .color-select { width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ccc; background-color: var(--white); cursor: pointer; }
-        tr[data-status="green"] { background-color: var(--vivid-green) !important; }
-        tr[data-status="red"] { background-color: var(--vivid-red) !important; }
-        tr[data-status="white"] { background-color: var(--white) !important; }
-        tr[data-status="white"]:nth-child(even) { background-color: #f9f9f9 !important; }
-        tr[data-status="white"]:hover { background-color: #eef8fb !important; }
-        .summary-row { font-weight: bold; background-color: #e0e0e0; }
-        .summary-row.total { background-color: #c9e6f1; }
-        .summary-row.average { background-color: #f0e6c9; }
-        .filters-container { padding: 20px 30px; background-color: var(--white); margin: 20px 30px 0; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
-        .filter-group { display: flex; flex-direction: column; gap: 5px; }
-        .filter-group label { font-size: 14px; font-weight: bold; color: #333; }
-        .filters-container input[type="date"], .filters-container select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        .filters-container button { padding: 10px 15px; background-color: var(--blue); color: var(--white); border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background-color 0.3s ease; }
-        .filters-container button:hover { background-color: #31a7b3; }
-        .observation-cell { width: 150px; }
-        .observation-input { width: calc(100% - 10px); padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; box-sizing: border-box; }
-    </style>
+    <link rel="stylesheet" href="css/tabla-de-ventas.css">
 </head>
 <body>
     <main id="main-content">
@@ -103,14 +65,12 @@
             </table>
         </div>
     </main>
-    <script src="env.js"></script>
+    <script src="js/env.js"></script>
+    <script src="js/sales.js"></script>
     <script>
     document.addEventListener("DOMContentLoaded", function() {
         loadData();
     });
-
-    const apiUrl = `${window.env.API_URL}/cierre-caja/list`;
-    const downloadUrl = `${window.env.API_URL}/cierre-caja/download`;
 
     const tableBody = document.querySelector('tbody');
     const tableHeaderRow = document.querySelector('thead tr');
@@ -183,10 +143,7 @@
 
     async function loadData() {
         try {
-            const response = await fetch(apiUrl);
-            if (!response.ok) throw new Error(`Error de red: ${response.status}`);
-            
-            const data = await response.json();
+            const data = await salesAPI.getSalesList();
             const records = data.registros || [];
 
             if (records.length === 0) {
@@ -344,18 +301,7 @@
             return;
         }
         try {
-            const response = await fetch(downloadUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(currentFilteredAndRenderedRows)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Error al generar el archivo.');
-            }
-
-            const blob = await response.blob();
+            const blob = await salesAPI.downloadSales(currentFilteredAndRenderedRows);
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';

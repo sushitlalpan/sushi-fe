@@ -5,112 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Panel Integrado - Ventas, Egresos, Nómina</title>
-  <style>
-    :root {
-      --white: #ffffff;
-      --black: #111;
-      --blue: #3498db;
-      --dark-blue: #2980b9;
-      --green: #2ecc71;
-      --red: #e74c3c;
-      --purple: #9b59b6;
-      --light-gray: #f9f9f9;
-      --box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-      --border-radius: 12px;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: var(--light-gray);
-      color: var(--black);
-      line-height: 1.6;
-    }
-
-    main {
-      padding: 20px;
-    }
-
-    header {
-      background: linear-gradient(to right, var(--blue), var(--dark-blue));
-      color: white;
-      padding: 20px;
-      text-align: center;
-      border-radius: var(--border-radius);
-      margin-bottom: 20px;
-    }
-
-    h1 {
-      font-size: 28px;
-    }
-
-    .filters {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 15px;
-      padding: 15px;
-      background: var(--white);
-      box-shadow: var(--box-shadow);
-      border-radius: var(--border-radius);
-      margin-bottom: 20px;
-    }
-
-    .filters select,
-    .filters input[type="date"] {
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      min-width: 160px;
-    }
-
-    .chart-wrapper {
-      background: white;
-      border-radius: var(--border-radius);
-      box-shadow: var(--box-shadow);
-      padding: 20px;
-      margin-bottom: 30px;
-    }
-
-    canvas {
-      max-width: 100%;
-      height: 500px !important;
-    }
-
-    .stats-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
-      margin-top: 20px;
-    }
-
-    .stat-card {
-      background: white;
-      padding: 20px;
-      border-radius: var(--border-radius);
-      box-shadow: var(--box-shadow);
-      font-size: 16px;
-      text-align: center;
-    }
-
-    .stat-title {
-      font-weight: bold;
-      color: var(--blue);
-      margin-bottom: 5px;
-    }
-
-    .stat-value {
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--black);
-    }
-  </style>
+  <link rel="stylesheet" href="css/grafica-general.css">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -161,12 +56,10 @@
       </div>
     </div>
   </main>
-  <script src="env.js"></script>
+  <script src="js/env.js"></script>
+  <script src="js/branches.js"></script>
+  <script src="js/datos.js"></script>
   <script>
-    const backendApiBaseUrl = window.env.API_URL;
-    const datosGeneralesUrl = `${backendApiBaseUrl}/datos/generales`;
-    const sucursalesUrl = `${backendApiBaseUrl}/branches`;
-
     let ventasData = [], egresosData = [], nominaData = [];
     let chartInstance = null;
 
@@ -177,13 +70,10 @@
     async function initializeDashboard() {
       // Usar Promise.all para cargar los datos generales y las sucursales en paralelo
       try {
-        const [datosGeneralesResponse, sucursalesResponse] = await Promise.all([
-          fetch(datosGeneralesUrl, { headers: { 'ngrok-skip-browser-warning': 'true' } }),
-          fetch(sucursalesUrl, { headers: { 'ngrok-skip-browser-warning': 'true' } })
+        const [datosGenerales, datosSucursales] = await Promise.all([
+          datosAPI.getDatosGenerales(),
+          branchesAPI.getBranches()
         ]);
-
-        const datosGenerales = await datosGeneralesResponse.json();
-        const datosSucursales = await sucursalesResponse.json();
 
         // Mapear los datos de cada hoja a un formato unificado
         ventasData = (datosGenerales.ventas || []).map(item => ({
