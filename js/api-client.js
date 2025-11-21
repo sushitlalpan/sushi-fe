@@ -3,11 +3,21 @@
 
 class ApiClient {
     constructor() {
-        this.baseUrl = `${window.env.API_URL}`;
+        this.baseUrl = this.getApiUrl();
         this.defaultHeaders = {
             'Content-Type': 'application/json',
             'ngrok-skip-browser-warning': 'true'
         };
+    }
+    
+    getApiUrl() {
+        // Wait for window.env to be available or provide fallback
+        if (window.env && window.env.API_URL) {
+            return window.env.API_URL;
+        }
+        // Fallback for development
+        console.warn('window.env.API_URL not found, using fallback');
+        return 'http://localhost:8000';
     }
 
     // Get the auth token from sessionStorage
@@ -132,5 +142,36 @@ class ApiClient {
     }
 }
 
-// Create global instance
-const apiClient = new ApiClient();
+// Create global instance with delayed initialization
+let apiClient;
+
+// Initialize API client when DOM is ready and env is loaded
+function initializeApiClient() {
+    if (!apiClient) {
+        apiClient = new ApiClient();
+    }
+    return apiClient;
+}
+
+// Ensure apiClient is always available when accessed
+Object.defineProperty(window, 'apiClient', {
+    get: function() {
+        if (!apiClient) {
+            apiClient = new ApiClient();
+        }
+        return apiClient;
+    },
+    configurable: true
+});
+
+// Try to initialize immediately if env is available
+if (window.env && window.env.API_URL) {
+    apiClient = new ApiClient();
+} else {
+    // Wait for DOM load to ensure env.js has loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        if (!apiClient) {
+            apiClient = new ApiClient();
+        }
+    });
+}
