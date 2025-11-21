@@ -8,37 +8,36 @@ class EgresosAPI {
 
     // Fetch egresos list
     async getEgresosList() {
-        return await apiClient.get(`${this.basePath}/egresos/list`);
+        return await apiClient.get(`${this.basePath}/expenses`);
     }
 
     // Download egresos data as Excel
     async downloadEgresos(filteredData) {
-        return await apiClient.downloadFile(`${this.basePath}/egresos/download`, filteredData);
+        return await apiClient.downloadFile(`${this.basePath}/expenses/download`, filteredData);
     }
 
-    // Submit new egreso (note: this uses FormData, so we need special handling)
-    async submitEgreso(formData) {
-        // For FormData, we need to use fetch directly with multipart/form-data
-        const token = apiClient.getAuthToken();
-        const headers = {
-            'ngrok-skip-browser-warning': 'true'
-        };
+    // Search expense records with date range
+    async searchExpenses(startDate = null, endDate = null) {
+        let url = `${this.basePath}/expenses/search`;
+        const params = new URLSearchParams();
         
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
+        if (startDate) {
+            params.append('start_date', startDate);
+        }
+        if (endDate) {
+            params.append('end_date', endDate);
         }
         
-        const response = await fetch(`${apiClient.baseUrl}${this.basePath}/egresos`, {
-            method: 'POST',
-            body: formData,
-            headers: headers
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+        if (params.toString()) {
+            url += `?${params.toString()}`;
         }
         
-        return await response.json();
+        return await apiClient.get(url);
+    }
+
+    // Submit new egreso as JSON
+    async submitEgreso(egresoData) {
+        return await apiClient.post(`${this.basePath}/expenses`, egresoData);
     }
 }
 

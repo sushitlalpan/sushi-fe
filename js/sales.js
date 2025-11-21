@@ -8,7 +8,7 @@ class SalesAPI {
 
     // Fetch sales list
     async getSalesList() {
-        return await apiClient.get(`${this.basePath}/sales/list`);
+        return await apiClient.get(`${this.basePath}/sales`);
     }
 
     // Download sales data as Excel
@@ -16,29 +16,28 @@ class SalesAPI {
         return await apiClient.downloadFile(`${this.basePath}/sales/download`, filteredData);
     }
 
-    // Submit sales form data (note: this uses FormData, so we need special handling)
-    async submitSales(formData) {
-        // For FormData, we need to use fetch directly with multipart/form-data
-        const token = apiClient.getAuthToken();
-        const headers = {
-            'ngrok-skip-browser-warning': 'true'
-        };
+    // Search sales records with date range
+    async searchSales(startDate = null, endDate = null) {
+        let url = `${this.basePath}/sales/search`;
+        const params = new URLSearchParams();
         
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
+        if (startDate) {
+            params.append('start_date', startDate);
+        }
+        if (endDate) {
+            params.append('end_date', endDate);
         }
         
-        const response = await fetch(`${apiClient.baseUrl}${this.basePath}/cierre-caja`, {
-            method: 'POST',
-            body: formData,
-            headers: headers
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+        if (params.toString()) {
+            url += `?${params.toString()}`;
         }
         
-        return await response.json();
+        return await apiClient.get(url);
+    }
+
+    // Submit sales data as JSON
+    async submitSales(salesData) {
+        return await apiClient.post(`${this.basePath}/sales`, salesData);
     }
 }
 

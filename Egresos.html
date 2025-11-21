@@ -83,6 +83,7 @@
     </form>
   </div>
   <script src="js/env.js"></script>
+  <script src="js/api-client.js"></script>
   <script src="js/users.js"></script>
   <script src="js/branches.js"></script>
   <script src="js/egresos.js"></script>
@@ -100,25 +101,55 @@
     });
     
     async function cargarOperadoresYSeleccionarUsuario() {
-        const loggedInUser = sessionStorage.getItem('loggedInUser');
         try {
-            const data = await usersAPI.getUsers();
-            if (data.users && data.users.length > 0) {
-                operadorSelect.innerHTML = '<option value="" disabled>Selecciona un operador</option>';
-                data.users.sort().forEach(operador => {
-                    operadorSelect.innerHTML += `<option value="${operador}">${operador}</option>`;
-                });
-                if (loggedInUser && data.users.includes(loggedInUser)) {
-                    operadorSelect.value = loggedInUser;
-                    operadorSelect.disabled = true;
+            // Get logged in user info
+            const loggedInUserInfo = await usersAPI.getLoggedInUser();
+            const isAdmin = loggedInUserInfo.is_admin === true;
+            const currentUsername = loggedInUserInfo.username || loggedInUserInfo.name;
+
+            if (isAdmin) {
+                // Admin: Load all users and allow selection
+                const users = await usersAPI.getUsers();
+                if (users && users.length > 0) {
+                    operadorSelect.innerHTML = '<option value="" disabled selected>Selecciona un operador</option>';
+                    
+                    // Sort users by username and create options with user ID as value
+                    const sortedUsers = users.sort((a, b) => {
+                        const nameA = typeof a === 'string' ? a : (a.username || a.name || 'N/A');
+                        const nameB = typeof b === 'string' ? b : (b.username || b.name || 'N/A');
+                        return nameA.localeCompare(nameB);
+                    });
+                    
+                    sortedUsers.forEach(user => {
+                        const username = typeof user === 'string' ? user : (user.username || user.name || 'N/A');
+                        const userId = typeof user === 'object' ? user.id : username;
+                        operadorSelect.innerHTML += `<option value="${userId}">${username}</option>`;
+                    });
+
+                    // Pre-select current user but allow changing
+                    const currentUserId = loggedInUserInfo.id;
+                    if (currentUserId) {
+                        operadorSelect.value = currentUserId;
+                    }
+                    operadorSelect.disabled = false;
                 } else {
-                    operadorSelect.firstChild.selected = true;
+                    operadorSelect.innerHTML = '<option value="" disabled selected>No hay operadores</option>';
                 }
             } else {
-                operadorSelect.innerHTML = '<option value="" disabled>No hay operadores</option>';
+                // Non-admin: Pre-select current user and disable selection
+                const currentUserId = loggedInUserInfo.id;
+                if (currentUsername && currentUserId) {
+                    operadorSelect.innerHTML = `<option value="${currentUserId}" selected>${currentUsername}</option>`;
+                    operadorSelect.disabled = true;
+                } else {
+                    operadorSelect.innerHTML = '<option value="" disabled selected>Usuario no identificado</option>';
+                    operadorSelect.disabled = true;
+                }
             }
         } catch (error) {
-            operadorSelect.innerHTML = '<option value="" disabled>Error al cargar</option>';
+            console.error('Error al cargar información del usuario:', error);
+            operadorSelect.innerHTML = '<option value="" disabled selected>Error al cargar</option>';
+            operadorSelect.disabled = true;
         }
     }
 
@@ -127,8 +158,12 @@
             const data = await branchesAPI.getBranches();
             if (data.branches && data.branches.length > 0) {
                 sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
-                data.branches.sort().forEach(sucursal => {
-                    sucursalSelect.innerHTML += `<option value="${sucursal}">${sucursal}</option>`;
+                
+                // Sort branches by name
+                const sortedBranches = data.branches.sort((a, b) => a.name.localeCompare(b.name));
+                
+                sortedBranches.forEach(branch => {
+                    sucursalSelect.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
                 });
             } else {
                 sucursalSelect.innerHTML = '<option value="" disabled>No hay sucursales</option>';
@@ -138,32 +173,50 @@
         }
     }
 
-    form.addEventListener("submit", function (e) {
+    form.addEventListener("submit", async function (e) {
       e.preventDefault();
       const submitButton = form.querySelector('.submit-btn');
       submitButton.disabled = true;
       submitButton.textContent = 'Enviando...';
       
-      operadorSelect.disabled = false;
-      const formData = new FormData(this);
-      operadorSelect.disabled = true;
+      try {
+        // Convert form data to required JSON structure
+        const cantidad = parseFloat(document.getElementById('cantidad').value) || 0;
+        const precio = parseFloat(document.getElementById('precio').value) || 0;
+        const totalAmount = cantidad * precio;
+        
+        const egresoData = {
+          expense_date: document.getElementById('fecha').value,
+          expense_description: document.getElementById('compra_servicio').value || '',
+          vendor_payee: document.getElementById('lugar_compra').value || '',
+          expense_category: document.getElementById('concepto').value || '',
+          quantity: cantidad,
+          unit_of_measure: document.getElementById('udm').value || '',
+          total_amount: totalAmount,
+          tax_amount: 0,
+          receipt_number: '',
+          payment_method: 'cash',
+          is_reimbursable: 'no',
+          notes: '',
+          worker_id: document.getElementById('operadorSelect').value,
+          branch_id: document.getElementById('sucursalSelect').value
+        };
 
-      egresosAPI.submitEgreso(formData)
-      .then(data => {
-        alert(data.message);
-        if (data.success) {
-          form.reset();
-          document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
-          cargarOperadoresYSeleccionarUsuario();
-        }
-      })
-      .catch(error => {
+        const result = await egresosAPI.submitEgreso(egresoData);
+        
+        // Assume success unless an error is thrown
+        alert('Egreso registrado exitosamente');
+        form.reset();
+        document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+        await cargarOperadoresYSeleccionarUsuario();
+        
+      } catch (error) {
+        console.error('Error al enviar egreso:', error);
         alert('Error al conectar con el servidor.');
-      })
-      .finally(() => {
+      } finally {
         submitButton.disabled = false;
         submitButton.textContent = 'Registrar Egreso';
-      });
+      }
     });
   </script>
 </body>

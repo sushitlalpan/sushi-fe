@@ -52,6 +52,7 @@
         </div>
     </main>
 	<script src="js/env.js"></script>
+	<script src="js/api-client.js"></script>
 	<script src="js/nomina.js"></script>
 	<script>
     document.addEventListener("DOMContentLoaded", function() {
@@ -115,7 +116,7 @@
 	async function loadData() {
 		try {
             const data = await nominaAPI.getNominaList();
-            const records = data.registros || [];
+            const records = data.payroll_records || [];
 
 			if (records.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="${currentHeaderColCount}" class="no-data-cell">No hay datos para mostrar.</td></tr>`;
@@ -123,14 +124,14 @@
 			}
 			
             allTableRowsData = records.map((record, index) => ({
-                id: index,
-                date: record.FECHA || '',
-                colaborador: record.OPERADOR || '',
-                diasLaborados: record.DIAS_LABORADOS || '',
-                sucursal: record.SUCURSAL || '',
-                cantidad: record.CANTIDAD || 0,
-                nomina: record.TIPO_NOMINA || '',
-                notas: record.NOTAS || '',
+                id: record.id || index,
+                date: record.date || '',
+                colaborador: record.worker_username || '',
+                diasLaborados: record.days_worked || '',
+                sucursal: record.branch_name || '',
+                cantidad: record.amount || 0,
+                nomina: record.payroll_type || '',
+                notas: record.notes || '',
                 status: 'white',
                 observation: ''
             }));

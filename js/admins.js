@@ -8,28 +8,17 @@ class AdminAPI {
 
     // Fetch all admins
     async getAdmins() {
-        return await apiClient.get(`${this.basePath}/admins`);
+        return await apiClient.get(`${this.basePath}/admin`);
     }
 
-    // Fetch admins with their passwords
-    async getAdminsWithPasswords() {
-        try {
-            const result = await apiClient.get(`${this.basePath}/admins-with-passwords`);
-            return result.admins || {};
-        } catch (error) {
-            console.error('Error al cargar contraseñas de admins:', error);
-            return {};
-        }
+    // Delete an admin
+    async deleteAdmin(adminId) {
+        return await apiClient.delete(`${this.basePath}/admin/${adminId}`);
     }
 
     // Add a new admin
     async addAdmin(username, password) {
-        return await apiClient.post(`${this.basePath}/add-admin`, { username, password });
-    }
-
-    // Delete an admin
-    async deleteAdmin(username) {
-        return await apiClient.post(`${this.basePath}/delete-admin`, { username });
+        return await apiClient.post(`${this.basePath}/auth/admin/register`, { username, password });
     }
 
     // Admin login (no auth token needed for login)

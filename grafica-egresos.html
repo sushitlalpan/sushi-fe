@@ -41,6 +41,7 @@
         </div>
     </main>
     <script src="js/env.js"></script>
+    <script src="js/api-client.js"></script>
     <script src="js/branches.js"></script>
     <script src="js/egresos.js"></script>
     <script>
@@ -69,10 +70,20 @@
                 const sucursales = data.branches || [];
                 const select = document.getElementById('filtroSucursal');
                 select.innerHTML = '<option value="all">Todas las Sucursales</option>';
-                sucursales.sort().forEach(s => {
+                
+                // Sort branches by name
+                const sortedBranches = sucursales.sort((a, b) => {
+                    const nameA = typeof a === 'string' ? a : (a.name || 'N/A');
+                    const nameB = typeof b === 'string' ? b : (b.name || 'N/A');
+                    return nameA.localeCompare(nameB);
+                });
+                
+                sortedBranches.forEach(branch => {
+                    const branchName = typeof branch === 'string' ? branch : (branch.name || 'N/A');
+                    const branchId = typeof branch === 'string' ? branch : (branch.id || branchName);
                     const opt = document.createElement('option');
-                    opt.value = s;
-                    opt.textContent = s;
+                    opt.value = branchId;
+                    opt.textContent = branchName;
                     select.appendChild(opt);
                 });
             } catch (error) {
@@ -84,14 +95,19 @@
         async function loadEgresosData() {
             try {
                 const data = await egresosAPI.getEgresosList();
-                const registros = data.registros || [];
+                const expenses = data.expenses || [];
                 
-                originalData = registros.map(item => ({
-                    fecha: item.FECHA ? new Date(item.FECHA + 'T00:00:00') : null,
-                    sucursal: item.SUCURSAL,
-                    concepto: item.CONCEPTO,
-                    total: parseFloat(item.PRECIO) || 0
-                }));
+                originalData = expenses.map(item => ({
+                    fecha: item.expense_date ? new Date(item.expense_date + 'T00:00:00') : null,
+                    sucursal: item.branch_name || 'N/A',
+                    branchId: item.branch_id,
+                    concepto: item.expense_category || 'N/A',
+                    descripcion: item.expense_description || '',
+                    proveedor: item.vendor_payee || '',
+                    total: parseFloat(item.total_amount) || 0,
+                    cantidad: parseFloat(item.quantity) || 0,
+                    metodoPago: item.payment_method || 'cash'
+                })).filter(item => item.fecha && !isNaN(item.fecha));
 
                 renderCharts(originalData);
             } catch (error) {
@@ -110,7 +126,7 @@
 
             return originalData.filter(item => {
                 if (!item.fecha || isNaN(item.fecha)) return false;
-                if (sucursal !== 'all' && item.sucursal !== sucursal) return false;
+                if (sucursal !== 'all' && item.branchId !== sucursal) return false;
                 if (fechaInicio && item.fecha < fechaInicio) return false;
                 if (fechaFin && item.fecha > fechaFin) return false;
                 return true;
@@ -139,8 +155,13 @@
                 }
                 return acc;
             }, {});
-            const monthlyLabels = Object.keys(monthlyData).sort();
-            const monthlyValues = monthlyLabels.map(label => monthlyData[label]);
+            const monthlyKeys = Object.keys(monthlyData).sort();
+            const monthlyLabels = monthlyKeys.map(key => {
+                const [year, month] = key.split('-');
+                const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                return `${monthNames[parseInt(month) - 1]} ${year}`;
+            });
+            const monthlyValues = monthlyKeys.map(key => monthlyData[key]);
 
             const byConcepto = data.reduce((acc, { concepto, total }) => {
                 if (concepto) {
@@ -161,7 +182,10 @@
             const dataSucursal = Object.values(bySucursal);
 
             const chartColors = ['#e94a7e', '#f0d44c', '#41c5d3', '#9b59b6', '#3498db', '#e67e22', '#2ecc71', '#e74c3c'];
-            const tooltipCurrency = { plugins: { tooltip: { callbacks: { label: ctx => `$${ctx.parsed.toLocaleString('es-MX', {minimumFractionDigits: 2})}` } } } };
+            const tooltipCurrency = { plugins: { tooltip: { callbacks: { label: ctx => {
+                const value = typeof ctx.parsed === 'object' ? (ctx.parsed.y || ctx.parsed) : ctx.parsed;
+                return `$${value.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+            } } } } };
 
             charts.gastosDiarios = new Chart('gastosDiariosChart', {
                 type: 'line',

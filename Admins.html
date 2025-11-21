@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="css/admins.css">
 </head>
 <body>
-
     <main id="main-content">
         <header>
             <h1>Gestión de Administradores - Sushi Tlalpan</h1>
@@ -16,10 +15,8 @@
         <div class="container">
             <div class="button-group">
                 <button id="add-user-btn" class="action-button">Agregar Admin</button>
-                <button id="delete-user-btn" class="action-button">Eliminar Admin</button>
                 <button id="refresh-admins-btn" class="action-button">Actualizar Lista</button>
             </div>
-            
             <div id="add-user-form" class="form-container">
                 <form id="add-admin-local-form">
                     <div class="input-group">
@@ -38,27 +35,11 @@
                 </div>
                 <div id="add-message" class="message"></div>
             </div>
-            
-            <div id="delete-user-form" class="form-container">
-                <form id="delete-admin-local-form">
-                    <div class="input-group full-width">
-                        <label for="usuario_delete">Admin a Eliminar</label>
-                        <input type="text" id="usuario_delete" name="usuario_delete" required>
-                    </div>
-                    <button type="submit" class="submit-btn">Eliminar Admin</button>
-                </form>
-                <div class="loading" id="delete-loading">
-                    <div class="spinner"></div>
-                    <p>Eliminando administrador...</p>
-                </div>
-                <div id="delete-message" class="message"></div>
-            </div>
-            
             <table>
                 <thead>
                     <tr>
                         <th>Usuario</th>
-                        <th>Contraseña</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="tablaAdmins">
@@ -75,10 +56,7 @@
     <script src="js/env.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/admins.js"></script>
-    <script>
-        // Configuración del servidor
-        const NGROK_URL = window.env.API_URL;
-        
+    <script>        
         // --- Inicialización sin PIN ---
         document.addEventListener("DOMContentLoaded", function() {
             initializePage();
@@ -86,21 +64,13 @@
 
         // Elementos del DOM
         const addUserBtn = document.getElementById("add-user-btn");
-        const deleteUserBtn = document.getElementById("delete-user-btn");
         const refreshAdminsBtn = document.getElementById("refresh-admins-btn");
         const addUserForm = document.getElementById("add-user-form");
-        const deleteUserForm = document.getElementById("delete-user-form");
         const tablaAdmins = document.getElementById("tablaAdmins");
 
         // Event listeners para botones
         addUserBtn.addEventListener("click", () => {
             addUserForm.classList.add("active");
-            deleteUserForm.classList.remove("active");
-        });
-
-        deleteUserBtn.addEventListener("click", () => {
-            deleteUserForm.classList.add("active");
-            addUserForm.classList.remove("active");
         });
 
         refreshAdminsBtn.addEventListener("click", () => {
@@ -128,20 +98,21 @@
         // Función para cargar administradores desde el servidor
         async function loadAdmins() {
             try {
-                const result = await adminAPI.getAdmins();
+                const admins = await adminAPI.getAdmins();
                 
                 tablaAdmins.innerHTML = '';
                 
-                if (result.admins && result.admins.length > 0) {
-                    // Obtener las contraseñas también
-                    const adminsWithPasswords = await adminAPI.getAdminsWithPasswords();
-                    
-                    result.admins.forEach(username => {
-                        const adminPassword = adminsWithPasswords[username] || '••••••••';
+                if (admins && admins.length > 0) {
+                    admins.forEach(admin => {
+                        const username = typeof admin === 'string' ? admin : (admin.username || admin.name || 'N/A');
+                        const adminId = typeof admin === 'object' ? (admin.id || admin.admin_id || username) : username;
                         const fila = document.createElement("tr");
+                        fila.setAttribute('data-admin-id', adminId);
                         fila.innerHTML = `
                             <td>${username}</td>
-                            <td>${adminPassword}</td>
+                            <td>
+                                <button class="delete-btn" onclick="deleteAdminById('${adminId}', '${username}')">Eliminar</button>
+                            </td>
                         `;
                         tablaAdmins.appendChild(fila);
                     });
@@ -157,7 +128,26 @@
             }
         }
 
+        // Función para eliminar administrador por ID (llamada desde botones de la tabla)
+        async function deleteAdminById(adminId, username) {
+            if (!confirm(`¿Está seguro de que desea eliminar al administrador "${username}"?`)) {
+                return;
+            }
 
+            try {
+                const result = await adminAPI.deleteAdmin(adminId);
+                
+                // Assume success unless an error is thrown
+                showMessage('add-message', result.message || 'Administrador eliminado exitosamente', 'success');
+                setTimeout(() => {
+                    loadAdmins();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error al eliminar administrador:', error);
+                showMessage('add-message', `Error de conexión: ${error.message}`, 'error');
+            }
+        }
 
         // Formulario para agregar administrador
         document.getElementById("add-admin-local-form").addEventListener("submit", async function(e) {
@@ -176,61 +166,19 @@
             try {
                 const result = await adminAPI.addAdmin(usuario, contrasena);
                 
-                if (result.success) {
-                    showMessage('add-message', result.message, 'success');
-                    document.getElementById("add-admin-local-form").reset();
-                    setTimeout(() => {
-                        loadAdmins();
-                        addUserForm.classList.remove("active");
-                    }, 2000);
-                } else {
-                    showMessage('add-message', result.message, 'error');
-                }
+                // Assume success unless an error is thrown
+                showMessage('add-message', result.message || 'Administrador agregado exitosamente', 'success');
+                document.getElementById("add-admin-local-form").reset();
+                setTimeout(() => {
+                    loadAdmins();
+                    addUserForm.classList.remove("active");
+                }, 2000);
                 
             } catch (error) {
                 console.error('Error al agregar administrador:', error);
                 showMessage('add-message', `Error de conexión: ${error.message}`, 'error');
             } finally {
                 showLoading('add-loading', false);
-            }
-        });
-
-        // Formulario para eliminar administrador
-        document.getElementById("delete-admin-local-form").addEventListener("submit", async function(e) {
-            e.preventDefault();
-            
-            const usuarioAEliminar = document.getElementById("usuario_delete").value.trim();
-            
-            if (!usuarioAEliminar) {
-                showMessage('delete-message', 'Por favor, ingrese el nombre de administrador a eliminar.', 'error');
-                return;
-            }
-
-            if (!confirm(`¿Está seguro de que desea eliminar al administrador "${usuarioAEliminar}"?`)) {
-                return;
-            }
-
-            showLoading('delete-loading', true);
-            
-            try {
-                const result = await adminAPI.deleteAdmin(usuarioAEliminar);
-                
-                if (result.success) {
-                    showMessage('delete-message', result.message, 'success');
-                    document.getElementById("delete-admin-local-form").reset();
-                    setTimeout(() => {
-                        loadAdmins();
-                        deleteUserForm.classList.remove("active");
-                    }, 2000);
-                } else {
-                    showMessage('delete-message', result.message, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error al eliminar administrador:', error);
-                showMessage('delete-message', `Error de conexión: ${error.message}`, 'error');
-            } finally {
-                showLoading('delete-loading', false);
             }
         });
 

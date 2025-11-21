@@ -57,6 +57,7 @@
     </form>
   </div>
   <script src="js/env.js"></script>
+  <script src="js/api-client.js"></script>
   <script src="js/users.js"></script>
   <script src="js/branches.js"></script>
   <script src="js/nomina.js"></script>
@@ -72,24 +73,58 @@
     });
 
     async function cargarOperadoresYSeleccionarUsuario() {
-        const loggedInUser = sessionStorage.getItem('loggedInUser');
         try {
-            const data = await usersAPI.getUsers();
-            if (data.users && data.users.length > 0) {
+            // Get current user info to check admin status
+            const loggedInUserInfo = await usersAPI.getLoggedInUser();
+            const isAdmin = loggedInUserInfo.is_admin === true;
+            const currentUserId = loggedInUserInfo.id;
+            const currentUsername = loggedInUserInfo.username || loggedInUserInfo.name;
+            
+            const users = await usersAPI.getUsers();
+            if (users && users.length > 0) {
                 operadorSelect.innerHTML = '<option value="" disabled>Selecciona un operador</option>';
-                data.users.sort().forEach(operador => {
-                    operadorSelect.innerHTML += `<option value="${operador}">${operador}</option>`;
+                
+                // Sort users by name but keep full user objects
+                const sortedUsers = users.sort((a, b) => {
+                    const nameA = (typeof a === 'string' ? a : a.name || a.username || '');
+                    const nameB = (typeof b === 'string' ? b : b.name || b.username || '');
+                    return nameA.localeCompare(nameB);
                 });
-                if (loggedInUser && data.users.includes(loggedInUser)) {
-                    operadorSelect.value = loggedInUser;
-                    operadorSelect.disabled = true;
+                
+                sortedUsers.forEach(user => {
+                    const userName = typeof user === 'string' ? user : (user.name || user.username || 'N/A');
+                    const userId = typeof user === 'string' ? user : (user.id || user.user_id || userName);
+                    operadorSelect.innerHTML += `<option value="${userId}" data-name="${userName}">${userName}</option>`;
+                });
+                
+                if (isAdmin) {
+                    // Admin can select any user
+                    operadorSelect.firstElementChild.selected = true;
+                    operadorSelect.disabled = false;
                 } else {
-                    operadorSelect.firstChild.selected = true;
+                    // Non-admin users can only select themselves
+                    if (currentUserId) {
+                        operadorSelect.value = currentUserId;
+                        operadorSelect.disabled = true;
+                    } else if (currentUsername) {
+                        // Fallback: find user by name if ID not available
+                        const userOption = Array.from(operadorSelect.options).find(option => 
+                            option.dataset.name === currentUsername
+                        );
+                        if (userOption) {
+                            operadorSelect.value = userOption.value;
+                            operadorSelect.disabled = true;
+                        }
+                    } else {
+                        operadorSelect.firstElementChild.selected = true;
+                        operadorSelect.disabled = false;
+                    }
                 }
             } else {
                 operadorSelect.innerHTML = '<option value="" disabled>No hay operadores</option>';
             }
         } catch (error) {
+            console.error('Error al cargar operadores:', error);
             operadorSelect.innerHTML = '<option value="" disabled>Error al cargar</option>';
         }
     }
@@ -99,8 +134,18 @@
             const data = await branchesAPI.getBranches();
             if (data.branches && data.branches.length > 0) {
                 sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
-                data.branches.sort().forEach(sucursal => {
-                    sucursalSelect.innerHTML += `<option value="${sucursal}">${sucursal}</option>`;
+                
+                // Sort branches by name but keep full branch objects
+                const sortedBranches = data.branches.sort((a, b) => {
+                    const nameA = (typeof a === 'string' ? a : a.name || '');
+                    const nameB = (typeof b === 'string' ? b : b.name || '');
+                    return nameA.localeCompare(nameB);
+                });
+                
+                sortedBranches.forEach(branch => {
+                    const branchName = typeof branch === 'string' ? branch : (branch.name || 'N/A');
+                    const branchId = typeof branch === 'string' ? branch : (branch.id || branch.branch_id || branchName);
+                    sucursalSelect.innerHTML += `<option value="${branchId}" data-name="${branchName}">${branchName}</option>`;
                 });
             } else {
                 sucursalSelect.innerHTML = '<option value="" disabled>No hay sucursales</option>';
@@ -116,20 +161,38 @@
       submitButton.disabled = true;
       submitButton.textContent = 'Enviando...';
       
+      // Temporarily enable operador select to get its value
+      const wasDisabled = operadorSelect.disabled;
       operadorSelect.disabled = false;
-      const formData = new FormData(this);
-      operadorSelect.disabled = true;
+      
+      // Create JSON object from form data matching expected API structure
+      const fechaValue = document.getElementById('fecha').value;
+      const fechaISO = fechaValue ? new Date(fechaValue + 'T00:00:00Z').toISOString() : new Date().toISOString();
+      
+      const nominaData = {
+        amount: parseFloat(document.getElementById('cantidad').value).toFixed(2),
+        branch_id: sucursalSelect.value,
+        date: fechaISO,
+        days_worked: parseInt(document.getElementById('dias_laborados').value),
+        notes: document.getElementById('notas').value || '',
+        payroll_type: document.getElementById('tipo_nomina').value.toLowerCase().replace(/\s+/g, '_'),
+        worker_id: operadorSelect.value
+      };
+      
+      // Restore disabled state
+      operadorSelect.disabled = wasDisabled;
 
-      nominaAPI.submitNomina(formData)
+      nominaAPI.submitNomina(nominaData)
       .then(data => {
-        alert(data.message);
-        if (data.success) {
+        alert(data.message || 'Nómina registrada exitosamente');
+        if (data.success !== false) {
           form.reset();
           document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
           cargarOperadoresYSeleccionarUsuario();
         }
       })
       .catch(error => {
+        console.error('Error:', error);
         alert('Error de conexión con el servidor.');
       })
       .finally(() => {

@@ -29,6 +29,7 @@
         </div>
     </main>
 	<script src="js/env.js"></script>
+	<script src="js/api-client.js"></script>
 	<script src="js/branches.js"></script>
 	<script src="js/sales.js"></script>
 	<script>
@@ -53,25 +54,28 @@
 		async function loadSalesData() {
 		    try {
 		        const data = await salesAPI.getSalesList();
+		        const records = data.sales || [];
 		        
-		        originalData = data.registros.map((record, index) => {
+		        originalData = records.map((record, index) => {
 		            try {
-		                const fecha = new Date(record['FECHA DE CORTE'] + 'T00:00:00');
-		                if (isNaN(fecha.getTime()) || !record.SUCURSAL) {
+		                const fecha = new Date(record.closure_date + 'T00:00:00');
+		                if (isNaN(fecha.getTime())) {
 		                    return null;
 		                }
 		                return {
-		                    sucursal: record.SUCURSAL,
+		                    sucursal: record.branch_name || 'N/A',
+		                    branchId: record.branch_id,
 		                    fecha: fecha,
-		                    ventasTotales: parseNumber(record['VENTAS TOTALES']),
-		                    totalEfectivoReal: parseNumber(record['TOTAL EN EFECTIVO REAL']),
-		                    ticketPromedio: parseNumber(record['TICKET PROMEDIO']),
-		                    totalTarjetaReal: parseNumber(record['TOTAL TARJETA REAL']),
-		                    transfer: parseNumber(record['TRANSFER']),
-		                    comisionKiwi: parseNumber(record['TOTAL COMISIÓN KIWI'])
+		                    ventasTotales: parseNumber(record.sales_total),
+		                    totalEfectivoReal: parseNumber(record.cash_total),
+		                    ticketPromedio: parseNumber(record.avg_sale),
+		                    totalTarjetaReal: parseNumber(record.card_total),
+		                    transfer: parseNumber(record.transfer_amt),
+		                    comisionKiwi: parseNumber(record.kiwi_fee_total),
+		                    ticketCount: parseNumber(record.payments_nbr || 1)
 		                };
 		            } catch (e) {
-		                console.error(`Error procesando el registro #${index+2} en Excel:`, record, e);
+		                console.error(`Error procesando el registro #${index+1}:`, record, e);
 		                return null;
 		            }
 		        }).filter(Boolean);
@@ -79,19 +83,8 @@
 		        renderCharts(originalData);
 
 		    } catch (error) {
-		        // --- NUEVO MÉTODO DE DIAGNÓSTICO ---
-		        console.error('DIAGNÓSTICO DE ERROR:', error);
-		        
-		        if (error instanceof SyntaxError) {
-		            // Este error solo ocurre si el servidor envía 'NaN'.
-		            alert("¡PROBLEMA ENCONTRADO! (SyntaxError)\n\nEl servidor `app.py` que está corriendo es una versión ANTIGUA.\n\nSOLUCIÓN: Cierra la terminal de `app.py` (con Ctrl+C) y vuelve a iniciarla.");
-		        } else if (error instanceof TypeError) {
-		            // Este error suele ser por problemas de conexión.
-		            alert("¡PROBLEMA ENCONTRADO! (TypeError)\n\nNo se pudo conectar con el servidor.\n\nSOLUCIÓN: Verifica que `ngrok` esté corriendo y que la URL en el archivo HTML sea la correcta.");
-		        } else {
-		            // Captura otros errores, como los 502 de ngrok si app.py no corre.
-		            alert(`¡PROBLEMA ENCONTRADO! (Error de Conexión)\n\n${error.message}\n\nSOLUCIÓN: Asegúrate de que tanto 'app.py' como 'ngrok' estén corriendo sin errores.`);
-		        }
+		        console.error('Error al cargar los datos de ventas:', error);
+		        alert(`Error al cargar los datos: ${error.message}`);
 		    }
 		}
 
@@ -102,8 +95,18 @@
 
 				if (data.branches && data.branches.length > 0) {
 					select.innerHTML = '<option value="all">Todas las Sucursales</option>';
-					data.branches.forEach(s => {
-						select.innerHTML += `<option value="${s}">${s}</option>`;
+					
+					// Sort branches by name
+					const sortedBranches = data.branches.sort((a, b) => {
+						const nameA = typeof a === 'string' ? a : (a.name || 'N/A');
+						const nameB = typeof b === 'string' ? b : (b.name || 'N/A');
+						return nameA.localeCompare(nameB);
+					});
+					
+					sortedBranches.forEach(branch => {
+						const branchName = typeof branch === 'string' ? branch : (branch.name || 'N/A');
+						const branchId = typeof branch === 'string' ? branch : (branch.id || branchName);
+						select.innerHTML += `<option value="${branchId}">${branchName}</option>`;
 					});
 				} else {
 					select.innerHTML = '<option value="all">No hay sucursales</option>';
@@ -114,22 +117,21 @@
 			}
 		}
 
-		function filterData() {
-			const sucursal = document.getElementById('filtroSucursal').value;
-			const fechaInicio = document.getElementById('fechaInicio').value;
-			const fechaFin = document.getElementById('fechaFin').value;
+	function filterData() {
+		const sucursal = document.getElementById('filtroSucursal').value;
+		const fechaInicio = document.getElementById('fechaInicio').value;
+		const fechaFin = document.getElementById('fechaFin').value;
             const start = fechaInicio ? new Date(fechaInicio + 'T00:00:00') : null;
             const end = fechaFin ? new Date(fechaFin + 'T23:59:59') : null;
 
-			return originalData.filter(item => {
-				if (sucursal !== 'all' && item.sucursal !== sucursal) return false;
-				if (start && item.fecha < start) return false;
-				if (end && item.fecha > end) return false;
-				return true;
-			});
-		}
-        
-		function groupByDate(data, interval = 'day') {
+		return originalData.filter(item => {
+			// Filter by branch: compare branch_id if sucursal is not 'all'
+			if (sucursal !== 'all' && item.branchId !== sucursal) return false;
+			if (start && item.fecha < start) return false;
+			if (end && item.fecha > end) return false;
+			return true;
+		});
+	}		function groupByDate(data, interval = 'day') {
 			return data.reduce((acc, item) => {
 				let key = '';
 				switch(interval) {

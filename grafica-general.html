@@ -57,6 +57,7 @@
     </div>
   </main>
   <script src="js/env.js"></script>
+  <script src="js/api-client.js"></script>
   <script src="js/branches.js"></script>
   <script src="js/datos.js"></script>
   <script>
@@ -64,35 +65,55 @@
     let chartInstance = null;
 
     document.addEventListener("DOMContentLoaded", function () {
+      // Set current month as default date range
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      document.getElementById('fechaInicio').value = firstDayOfMonth.toISOString().split('T')[0];
+      document.getElementById('fechaFin').value = lastDayOfMonth.toISOString().split('T')[0];
+      
       initializeDashboard();
     });
 
     async function initializeDashboard() {
+      // Get current date range values
+      const startDate = document.getElementById('fechaInicio').value;
+      const endDate = document.getElementById('fechaFin').value;
+      
       // Usar Promise.all para cargar los datos generales y las sucursales en paralelo
       try {
         const [datosGenerales, datosSucursales] = await Promise.all([
-          datosAPI.getDatosGenerales(),
+          datosAPI.getDatosGenerales(startDate, endDate),
           branchesAPI.getBranches()
         ]);
 
-        // Mapear los datos de cada hoja a un formato unificado
-        ventasData = (datosGenerales.ventas || []).map(item => ({
-          fecha: item['FECHA DE CORTE'] ? new Date(item['FECHA DE CORTE'] + 'T00:00:00') : null,
-          sucursal: item.SUCURSAL,
-          total: parseFloat(item['VENTAS TOTALES']) || 0
-        }));
+        // Mapear los datos del nuevo formato de respuesta
+        ventasData = (datosGenerales.sales_records || []).map(item => ({
+          fecha: item.closure_date ? new Date(item.closure_date + 'T00:00:00') : null,
+          sucursal: item.branch_name || 'N/A',
+          branchId: item.branch_id,
+          total: parseFloat(item.sales_total) || 0
+        })).filter(item => item.fecha && !isNaN(item.fecha));
 
-        egresosData = (datosGenerales.egresos || []).map(item => ({
-          fecha: item.FECHA ? new Date(item.FECHA + 'T00:00:00') : null,
-          sucursal: item.SUCURSAL,
-          total: parseFloat(item.PRECIO) || 0
-        }));
+        egresosData = (datosGenerales.expense_records || []).map(item => ({
+          fecha: item.expense_date ? new Date(item.expense_date + 'T00:00:00') : null,
+          sucursal: item.branch_name || 'N/A',
+          branchId: item.branch_id,
+          total: parseFloat(item.total_amount) || 0
+        })).filter(item => item.fecha && !isNaN(item.fecha));
 
-        nominaData = (datosGenerales.nomina || []).map(item => ({
-          fecha: item.FECHA ? new Date(item.FECHA + 'T00:00:00') : null,
-          sucursal: item.SUCURSAL,
-          total: parseFloat(item.CANTIDAD) || 0
-        }));
+        nominaData = (datosGenerales.payroll_records || []).map(item => ({
+          fecha: item.date ? new Date(item.date) : null,
+          sucursal: item.branch_name || 'N/A',
+          branchId: item.branch_id,
+          total: parseFloat(item.amount) || 0
+        })).filter(item => item.fecha && !isNaN(item.fecha));
+
+        // Update summary statistics
+        if (datosGenerales.summary) {
+          updateSummaryStats(datosGenerales.summary);
+        }
 
         populateSucursales(datosSucursales.branches || []);
 
@@ -105,10 +126,20 @@
     function populateSucursales(sucursales) {
       const select = document.getElementById('filtroSucursal');
       select.innerHTML = '<option value="all">Todas las Sucursales</option>';
-      sucursales.sort().forEach(s => {
+      
+      // Sort branches by name
+      const sortedBranches = sucursales.sort((a, b) => {
+        const nameA = typeof a === 'string' ? a : (a.name || 'N/A');
+        const nameB = typeof b === 'string' ? b : (b.name || 'N/A');
+        return nameA.localeCompare(nameB);
+      });
+      
+      sortedBranches.forEach(branch => {
+        const branchName = typeof branch === 'string' ? branch : (branch.name || 'N/A');
+        const branchId = typeof branch === 'string' ? branch : (branch.id || branchName);
         const opt = document.createElement('option');
-        opt.value = s;
-        opt.textContent = s;
+        opt.value = branchId;
+        opt.textContent = branchName;
         select.appendChild(opt);
       });
 
@@ -119,13 +150,30 @@
       updateChart();
     }
 
+    function updateSummaryStats(summary) {
+      document.getElementById('totalVentas').textContent = `$${parseFloat(summary.total_sales || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+      document.getElementById('totalEgresos').textContent = `$${parseFloat(summary.total_expenses || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+      document.getElementById('totalNomina').textContent = `$${parseFloat(summary.total_payroll || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+      document.getElementById('margenNeto').textContent = `$${parseFloat(summary.net_profit || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+      
+      const totalSales = parseFloat(summary.total_sales || 0);
+      const totalExpenses = parseFloat(summary.total_expenses || 0);
+      const totalPayroll = parseFloat(summary.total_payroll || 0);
+      
+      const expensePercentage = totalSales > 0 ? ((totalExpenses / totalSales) * 100).toFixed(1) : 0;
+      const payrollPercentage = totalSales > 0 ? ((totalPayroll / totalSales) * 100).toFixed(1) : 0;
+      
+      document.getElementById('porcentajeEgresos').textContent = `${expensePercentage}%`;
+      document.getElementById('porcentajeNomina').textContent = `${payrollPercentage}%`;
+    }
+
     function filterData(data, sucursal, startDate, endDate) {
       const start = startDate ? new Date(startDate + 'T00:00:00') : null;
       const end = endDate ? new Date(endDate + 'T00:00:00') : null;
 
       return data.filter(item => {
         if (!item.fecha || isNaN(item.fecha)) return false;
-        if (sucursal !== 'all' && item.sucursal !== sucursal) return false;
+        if (sucursal !== 'all' && item.branchId !== sucursal) return false;
         if (start && item.fecha < start) return false;
         if (end && item.fecha > end) return false;
         return true;
@@ -140,10 +188,44 @@
       }, {});
     }
 
-    function updateChart() {
+    async function updateChart() {
       const sucursal = document.getElementById('filtroSucursal').value;
       const fechaInicio = document.getElementById('fechaInicio').value;
       const fechaFin = document.getElementById('fechaFin').value;
+      
+      // Reload data when date range changes
+      try {
+        const datosGenerales = await datosAPI.getDatosGenerales(fechaInicio, fechaFin);
+        
+        // Update data with new API response
+        ventasData = (datosGenerales.sales_records || []).map(item => ({
+          fecha: item.closure_date ? new Date(item.closure_date + 'T00:00:00') : null,
+          sucursal: item.branch_name || 'N/A',
+          branchId: item.branch_id,
+          total: parseFloat(item.sales_total) || 0
+        })).filter(item => item.fecha && !isNaN(item.fecha));
+
+        egresosData = (datosGenerales.expense_records || []).map(item => ({
+          fecha: item.expense_date ? new Date(item.expense_date + 'T00:00:00') : null,
+          sucursal: item.branch_name || 'N/A',
+          branchId: item.branch_id,
+          total: parseFloat(item.total_amount) || 0
+        })).filter(item => item.fecha && !isNaN(item.fecha));
+
+        nominaData = (datosGenerales.payroll_records || []).map(item => ({
+          fecha: item.date ? new Date(item.date) : null,
+          sucursal: item.branch_name || 'N/A',
+          branchId: item.branch_id,
+          total: parseFloat(item.amount) || 0
+        })).filter(item => item.fecha && !isNaN(item.fecha));
+
+        // Update summary statistics
+        if (datosGenerales.summary) {
+          updateSummaryStats(datosGenerales.summary);
+        }
+      } catch (error) {
+        console.error('Error al actualizar datos:', error);
+      }
 
       const filteredVentas = filterData(ventasData, sucursal, fechaInicio, fechaFin);
       const filteredEgresos = filterData(egresosData, sucursal, fechaInicio, fechaFin);

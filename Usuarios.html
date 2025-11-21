@@ -16,7 +16,6 @@
         <div class="container">
             <div class="button-group">
                 <button id="add-user-btn" class="action-button">Agregar Usuario</button>
-                <button id="delete-user-btn" class="action-button">Eliminar Usuario</button>
                 <button id="refresh-users-btn" class="action-button">Actualizar Lista</button>
             </div>
             
@@ -30,6 +29,16 @@
                         <label for="contrasena">Contraseña</label>
                         <input type="password" id="contrasena" name="contrasena" required>
                     </div>
+                    <div class="input-group">
+                        <label for="phoneNumber">Teléfono</label>
+                        <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="ej: 5512345678">
+                    </div>
+                    <div class="input-group">
+                        <label for="branch">Sucursal</label>
+                        <select id="branch" name="branch" required>
+                            <option value="">Seleccione una sucursal...</option>
+                        </select>
+                    </div>
                     <button type="submit" class="submit-btn">Agregar Usuario</button>
                 </form>
                 <div class="loading" id="add-loading">
@@ -38,32 +47,18 @@
                 </div>
                 <div id="add-message" class="message"></div>
             </div>
-            
-            <div id="delete-user-form" class="form-container">
-                <form id="delete-user-local-form">
-                    <div class="input-group full-width">
-                        <label for="usuario_delete">Usuario a Eliminar</label>
-                        <input type="text" id="usuario_delete" name="usuario_delete" required>
-                    </div>
-                    <button type="submit" class="submit-btn">Eliminar Usuario</button>
-                </form>
-                <div class="loading" id="delete-loading">
-                    <div class="spinner"></div>
-                    <p>Eliminando usuario...</p>
-                </div>
-                <div id="delete-message" class="message"></div>
-            </div>
-            
             <table>
                 <thead>
                     <tr>
                         <th>Usuario</th>
-                        <th>Contraseña</th>
+                        <th>Teléfono</th>
+                        <th>Sucursal</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="tablaUsuarios">
                     <tr>
-                        <td colspan="2">Cargando usuarios...</td>
+                        <td colspan="4">Cargando usuarios...</td>
                     </tr>
                 </tbody>
             </table>
@@ -74,6 +69,7 @@
     </main>
     <script src="js/env.js"></script>
     <script src="js/api-client.js"></script>
+    <script src="js/branches.js"></script>
     <script src="js/users.js"></script>
     <script>
         // --- Inicialización sin PIN ---
@@ -83,21 +79,15 @@
 
         // Elementos del DOM
         const addUserBtn = document.getElementById("add-user-btn");
-        const deleteUserBtn = document.getElementById("delete-user-btn");
         const refreshUsersBtn = document.getElementById("refresh-users-btn");
         const addUserForm = document.getElementById("add-user-form");
-        const deleteUserForm = document.getElementById("delete-user-form");
         const tablaUsuarios = document.getElementById("tablaUsuarios");
 
         // Event listeners para botones
         addUserBtn.addEventListener("click", () => {
             addUserForm.classList.add("active");
-            deleteUserForm.classList.remove("active");
-        });
-
-        deleteUserBtn.addEventListener("click", () => {
-            deleteUserForm.classList.add("active");
-            addUserForm.classList.remove("active");
+            // Reset form fields
+            document.getElementById("add-user-local-form").reset();
         });
 
         refreshUsersBtn.addEventListener("click", () => {
@@ -122,76 +112,110 @@
             loadingDiv.style.display = show ? 'block' : 'none';
         }
 
+        // Función para cargar sucursales en el select
+        async function loadBranches() {
+            try {
+                const result = await branchesAPI.getBranches();
+                const branchSelect = document.getElementById('branch');
+                
+                // Clear existing options except the first one
+                branchSelect.innerHTML = '<option value="">Seleccione una sucursal...</option>';
+                
+                if (result.branches && result.branches.length > 0) {
+                    result.branches.forEach(branch => {
+                        const option = document.createElement('option');
+                        option.value = branch.id;
+                        option.textContent = branch.name;
+                        branchSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error al cargar sucursales:', error);
+            }
+        }
+
         // Función para cargar usuarios desde el servidor
         async function loadUsers() {
             try {
-                const result = await usersAPI.getUsers();
+                const users = await usersAPI.getUsers();
                 
                 tablaUsuarios.innerHTML = '';
                 
-                if (result.users && result.users.length > 0) {
-                    // Obtener las contraseñas también
-                    const usersWithPasswordsResult = await getUsersWithPasswords();
-                    
-                    result.users.forEach(username => {
-                        const userPassword = usersWithPasswordsResult[username] || '••••••••';
+                if (users && users.length > 0) {
+                    users.forEach(user => {
+                        const username = user.username || user.name || 'N/A';
+                        const userId = user.id || user.user_id || username; // Fallback to username if no ID
                         const fila = document.createElement("tr");
+                        fila.setAttribute('data-user-id', userId);
                         fila.innerHTML = `
                             <td>${username}</td>
-                            <td>${userPassword}</td>
+                            <td>${user.phone_number || user.phoneNumber || 'N/A'}</td>
+                            <td>${user.branch_name || user.branchName || 'N/A'}</td>
+                            <td>
+                                <button class="delete-btn" onclick="deleteUserById('${userId}', '${username}')">Eliminar</button>
+                            </td>
                         `;
                         tablaUsuarios.appendChild(fila);
                     });
                 } else {
                     const fila = document.createElement("tr");
-                    fila.innerHTML = `<td colspan="2">No hay usuarios disponibles</td>`;
+                    fila.innerHTML = `<td colspan="4">No hay usuarios disponibles</td>`;
                     tablaUsuarios.appendChild(fila);
                 }
 
             } catch (error) {
                 console.error('Error al cargar usuarios:', error);
-                tablaUsuarios.innerHTML = `<td colspan="2">Error al cargar usuarios: ${error.message}</td>`;
+                tablaUsuarios.innerHTML = `<td colspan="4">Error al cargar usuarios: ${error.message}</td>`;
             }
         }
 
-        // Función para obtener usuarios con contraseñas (esto requiere un endpoint especial en el servidor)
-        async function getUsersWithPasswords() {
-            try {
-                const result = await usersAPI.getUsersWithPasswords();
-                return result.users || {};
-            } catch (error) {
-                console.error('Error al cargar contraseñas:', error);
+        // Función para eliminar usuario por ID (llamada desde botones de la tabla)
+        async function deleteUserById(userId, username) {
+            if (!confirm(`¿Está seguro de que desea eliminar al usuario "${username}"?`)) {
+                return;
             }
-            return {};
+
+            try {
+                const result = await usersAPI.deleteUser(userId);
+                
+                // Assume success unless an error is thrown
+                showMessage('delete-message', result.message || 'Usuario eliminado exitosamente', 'success');
+                setTimeout(() => {
+                    loadUsers();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error al eliminar usuario:', error);
+                showMessage('delete-message', `Error de conexión: ${error.message}`, 'error');
+            }
         }
 
         // Formulario para agregar usuario
         document.getElementById("add-user-local-form").addEventListener("submit", async function(e) {
             e.preventDefault();
             
-            const usuario = document.getElementById("usuario").value.trim();
-            const contrasena = document.getElementById("contrasena").value.trim();
+            const username = document.getElementById("usuario").value.trim();
+            const password = document.getElementById("contrasena").value.trim();
+            const phoneNumber = document.getElementById("phoneNumber").value.trim();
+            const branchId = document.getElementById("branch").value;
             
-            if (!usuario || !contrasena) {
-                showMessage('add-message', 'Por favor, complete todos los campos.', 'error');
+            if (!username || !password || !branchId) {
+                showMessage('add-message', 'Por favor, complete todos los campos requeridos.', 'error');
                 return;
             }
 
             showLoading('add-loading', true);
             
             try {
-                const result = await usersAPI.addUser(usuario, contrasena);
+                const result = await usersAPI.addUser(username, password, branchId, phoneNumber);
                 
-                if (result.success) {
-                    showMessage('add-message', result.message, 'success');
-                    document.getElementById("add-user-local-form").reset();
-                    setTimeout(() => {
-                        loadUsers();
-                        addUserForm.classList.remove("active");
-                    }, 2000);
-                } else {
-                    showMessage('add-message', result.message, 'error');
-                }
+                // Assume success unless an error is thrown
+                showMessage('add-message', result.message || 'Usuario agregado exitosamente', 'success');
+                document.getElementById("add-user-local-form").reset();
+                setTimeout(() => {
+                    loadUsers();
+                    addUserForm.classList.remove("active");
+                }, 2000);
                 
             } catch (error) {
                 console.error('Error al agregar usuario:', error);
@@ -201,47 +225,9 @@
             }
         });
 
-        // Formulario para eliminar usuario
-        document.getElementById("delete-user-local-form").addEventListener("submit", async function(e) {
-            e.preventDefault();
-            
-            const usuarioAEliminar = document.getElementById("usuario_delete").value.trim();
-            
-            if (!usuarioAEliminar) {
-                showMessage('delete-message', 'Por favor, ingrese el nombre de usuario a eliminar.', 'error');
-                return;
-            }
-
-            if (!confirm(`¿Está seguro de que desea eliminar al usuario "${usuarioAEliminar}"?`)) {
-                return;
-            }
-
-            showLoading('delete-loading', true);
-            
-            try {
-                const result = await usersAPI.deleteUser(usuarioAEliminar);
-                
-                if (result.success) {
-                    showMessage('delete-message', result.message, 'success');
-                    document.getElementById("delete-user-local-form").reset();
-                    setTimeout(() => {
-                        loadUsers();
-                        deleteUserForm.classList.remove("active");
-                    }, 2000);
-                } else {
-                    showMessage('delete-message', result.message, 'error');
-                }
-                
-            } catch (error) {
-                console.error('Error al eliminar usuario:', error);
-                showMessage('delete-message', `Error de conexión: ${error.message}`, 'error');
-            } finally {
-                showLoading('delete-loading', false);
-            }
-        });
-
         // Función de inicialización
         async function initializePage() {
+            await loadBranches();
             await loadUsers();
         }
     </script>

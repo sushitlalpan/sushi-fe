@@ -16,7 +16,6 @@
         <div class="container">
             <div class="button-group">
                 <button id="add-branch-btn" class="action-button">Agregar Sucursal</button>
-                <button id="delete-branch-btn" class="action-button">Eliminar Sucursal</button>
                 <button id="refresh-branches-btn" class="action-button">Actualizar Lista</button>
             </div>
             
@@ -35,20 +34,6 @@
                 <div id="add-message" class="message"></div>
             </div>
             
-            <div id="delete-branch-form" class="form-container">
-                <form id="delete-branch-local-form">
-                    <div class="input-group">
-                        <label for="branch_name_delete">Nombre de la Sucursal a Eliminar</label>
-                        <input type="text" id="branch_name_delete" name="branch_name" required>
-                    </div>
-                    <button type="submit" class="submit-btn">Eliminar Sucursal</button>
-                </form>
-                <div class="loading" id="delete-loading">
-                    <div class="spinner"></div>
-                    <p>Eliminando sucursal...</p>
-                </div>
-                <div id="delete-message" class="message"></div>
-            </div>
             
             <table>
                 <thead>
@@ -79,24 +64,17 @@
 
         // Elementos del DOM
         const addBranchBtn = document.getElementById("add-branch-btn");
-        const deleteBranchBtn = document.getElementById("delete-branch-btn");
         const refreshBranchesBtn = document.getElementById("refresh-branches-btn");
         const addBranchForm = document.getElementById("add-branch-form");
-        const deleteBranchForm = document.getElementById("delete-branch-form");
         const tablaSucursales = document.getElementById("tablaSucursales");
 
         // Event listeners para botones
         addBranchBtn.addEventListener("click", () => {
             addBranchForm.classList.add("active");
-            deleteBranchForm.classList.remove("active");
             document.getElementById("branch_name_add").value = '';
         });
 
-        deleteBranchBtn.addEventListener("click", () => {
-            deleteBranchForm.classList.add("active");
-            addBranchForm.classList.remove("active");
-            document.getElementById("branch_name_delete").value = '';
-        });
+
 
         refreshBranchesBtn.addEventListener("click", () => {
             loadBranches();
@@ -203,39 +181,6 @@
                 showMessage('delete-message', `Error de conexión: ${error.message}`, 'error');
             }
         }
-
-        // Formulario para eliminar sucursal (ahora busca por nombre para obtener ID)
-        document.getElementById("delete-branch-local-form").addEventListener("submit", async function(e) {
-            e.preventDefault();
-            
-            const branchNameToDelete = document.getElementById("branch_name_delete").value.trim();
-            
-            if (!branchNameToDelete) {
-                showMessage('delete-message', 'Por favor, ingrese el nombre de la sucursal a eliminar.', 'error');
-                return;
-            }
-
-            // Find the branch ID from the table
-            const rows = tablaSucursales.querySelectorAll('tr[data-branch-id]');
-            let branchId = null;
-            
-            for (const row of rows) {
-                const nameCell = row.querySelector('td:nth-child(1)');
-                if (nameCell && nameCell.textContent.toLowerCase().trim() === branchNameToDelete.toLowerCase().trim()) {
-                    branchId = row.getAttribute('data-branch-id');
-                    break;
-                }
-            }
-
-            if (!branchId) {
-                showMessage('delete-message', 'No se encontró una sucursal con ese nombre.', 'error');
-                return;
-            }
-
-            await deleteBranchById(branchId, branchNameToDelete);
-            document.getElementById("delete-branch-local-form").reset();
-            deleteBranchForm.classList.remove("active");
-        });
 
         // Función de inicialización
         async function initializePage() {

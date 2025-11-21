@@ -107,32 +107,56 @@
 
         async function cargarOperadoresYSeleccionarUsuario() {
             const operadorSelect = document.getElementById('operador');
-            const loggedInUser = sessionStorage.getItem('loggedInUser');
 
             try {
-                const data = await usersAPI.getUsers();
-                if (data.users && data.users.length > 0) {
-                    operadorSelect.innerHTML = '<option value="" disabled>Selecciona un operador</option>';
-                    data.users.sort().forEach(operador => {
-                        operadorSelect.innerHTML += `<option value="${operador}">${operador}</option>`;
-                    });
+                // Get logged in user info
+                const loggedInUserInfo = await usersAPI.getLoggedInUser();
+                const isAdmin = loggedInUserInfo.is_admin === true;
+                const currentUsername = loggedInUserInfo.username || loggedInUserInfo.name;
 
-                    if (loggedInUser && data.users.includes(loggedInUser)) {
-                        operadorSelect.value = loggedInUser;
-                        operadorSelect.disabled = true;
-                    } else if (loggedInUser) {
-                        operadorSelect.innerHTML += `<option value="${loggedInUser}">${loggedInUser}</option>`;
-                        operadorSelect.value = loggedInUser;
+                if (isAdmin) {
+                    // Admin: Load all users and allow selection
+                    const users = await usersAPI.getUsers();
+                    if (users && users.length > 0) {
+                        operadorSelect.innerHTML = '<option value="" disabled selected>Selecciona un operador</option>';
+                        
+                        // Sort users by username and create options with user ID as value
+                        const sortedUsers = users.sort((a, b) => {
+                            const nameA = typeof a === 'string' ? a : (a.username || a.name || 'N/A');
+                            const nameB = typeof b === 'string' ? b : (b.username || b.name || 'N/A');
+                            return nameA.localeCompare(nameB);
+                        });
+                        
+                        sortedUsers.forEach(user => {
+                            const username = typeof user === 'string' ? user : (user.username || user.name || 'N/A');
+                            const userId = typeof user === 'object' ? user.id : username;
+                            operadorSelect.innerHTML += `<option value="${userId}">${username}</option>`;
+                        });
+
+                        // Pre-select current user but allow changing
+                        const currentUserId = loggedInUserInfo.id;
+                        if (currentUserId) {
+                            operadorSelect.value = currentUserId;
+                        }
+                        operadorSelect.disabled = false;
+                    } else {
+                        operadorSelect.innerHTML = '<option value="" disabled selected>No hay operadores</option>';
+                    }
+                } else {
+                    // Non-admin: Pre-select current user and disable selection
+                    const currentUserId = loggedInUserInfo.id;
+                    if (currentUsername && currentUserId) {
+                        operadorSelect.innerHTML = `<option value="${currentUserId}" selected>${currentUsername}</option>`;
                         operadorSelect.disabled = true;
                     } else {
-                        operadorSelect.firstChild.selected = true;
+                        operadorSelect.innerHTML = '<option value="" disabled selected>Usuario no identificado</option>';
+                        operadorSelect.disabled = true;
                     }
-
-                } else {
-                    operadorSelect.innerHTML = '<option value="" disabled selected>No hay operadores</option>';
                 }
             } catch (error) {
+                console.error('Error al cargar información del usuario:', error);
                 operadorSelect.innerHTML = '<option value="" disabled selected>Error al cargar</option>';
+                operadorSelect.disabled = true;
             }
         }
 
@@ -142,8 +166,12 @@
                 const data = await branchesAPI.getBranches();
                 if (data.branches && data.branches.length > 0) {
                     sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
-                    data.branches.sort().forEach(sucursal => {
-                        sucursalSelect.innerHTML += `<option value="${sucursal}">${sucursal}</option>`;
+                    
+                    // Sort branches by name
+                    const sortedBranches = data.branches.sort((a, b) => a.name.localeCompare(b.name));
+                    
+                    sortedBranches.forEach(branch => {
+                        sucursalSelect.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
                     });
                 } else {
                     sucursalSelect.innerHTML = '<option value="" disabled selected>No hay sucursales</option>';
@@ -193,21 +221,36 @@
             submitBtn.textContent = 'Enviando...';
             
             const form = document.getElementById('cierreForm');
-            document.getElementById('operador').disabled = false;
-            const formData = new FormData(form);
-            document.getElementById('operador').disabled = true;
-
+            
             try {
-                const result = await salesAPI.submitSales(formData);
-                if (result.success) {
-                    alert('Reporte guardado exitosamente');
-                    form.reset();
-                    document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
-                    await cargarOperadoresYSeleccionarUsuario();
-                } else {
-                    alert(`Error: ${result.message}`);
-                }
+                // Convert form data to required JSON structure
+                const salesData = {
+                    branch_id: document.getElementById('sucursal').value,
+                    card_itpv: "0.00",
+                    card_kiwi: document.getElementById('tarjetaKiwi').value || "0.00",
+                    card_refund: document.getElementById('devolucionTarjeta').value || "0.00",
+                    cash_amt: document.getElementById('efectivo').value || "0.00",
+                    cash_refund: document.getElementById('devolucionEfectivo').value || "0.00",
+                    closure_date: document.getElementById('fecha').value,
+                    closure_number: parseInt(document.getElementById('numeroCierre').value) || 1,
+                    kiwi_fee_total: document.getElementById('totalComisionKiwi').value || "0.00",
+                    notes: document.getElementById('notas').value || "",
+                    payments_nbr: parseInt(document.getElementById('numeroPagos').value) || 0,
+                    sales_total: document.getElementById('ventasTotales').value || "0.00",
+                    transfer_amt: document.getElementById('transferencias').value || "0.00",
+                    worker_id: document.getElementById('operador').value
+                };
+
+                const result = await salesAPI.submitSales(salesData);
+                
+                // Assume success unless an error is thrown
+                alert('Reporte guardado exitosamente');
+                form.reset();
+                document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+                await cargarOperadoresYSeleccionarUsuario();
+                
             } catch (error) {
+                console.error('Error al enviar datos:', error);
                 alert('Error de conexión con el servidor.');
             } finally {
                 submitBtn.disabled = false;

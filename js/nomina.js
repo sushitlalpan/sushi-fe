@@ -8,37 +8,36 @@ class NominaAPI {
 
     // Fetch nomina list
     async getNominaList() {
-        return await apiClient.get(`${this.basePath}/nomina/list`);
+        return await apiClient.get(`${this.basePath}/payroll`);
     }
 
     // Download nomina data as Excel
     async downloadNomina(filteredData) {
-        return await apiClient.downloadFile(`${this.basePath}/nomina/download`, filteredData);
+        return await apiClient.downloadFile(`${this.basePath}/payroll/download`, filteredData);
     }
 
-    // Submit new nomina record (note: this uses FormData, so we need special handling)
-    async submitNomina(formData) {
-        // For FormData, we need to use fetch directly with multipart/form-data
-        const token = apiClient.getAuthToken();
-        const headers = {
-            'ngrok-skip-browser-warning': 'true'
-        };
+    // Search payroll records with date range
+    async searchPayroll(startDate = null, endDate = null) {
+        let url = `${this.basePath}/payroll/search`;
+        const params = new URLSearchParams();
         
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
+        if (startDate) {
+            params.append('start_date', startDate);
+        }
+        if (endDate) {
+            params.append('end_date', endDate);
         }
         
-        const response = await fetch(`${apiClient.baseUrl}${this.basePath}/nomina`, {
-            method: 'POST',
-            body: formData,
-            headers: headers
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+        if (params.toString()) {
+            url += `?${params.toString()}`;
         }
         
-        return await response.json();
+        return await apiClient.get(url);
+    }
+
+    // Submit new nomina record
+    async submitNomina(nominaData) {
+        return await apiClient.post(`${this.basePath}/payroll`, nominaData);
     }
 }
 

@@ -7,8 +7,22 @@ class DatosAPI {
     }
 
     // Fetch general data (ventas, egresos, nomina)
-    async getDatosGenerales() {
-        return await apiClient.get(`${this.basePath}/datos/generales`);
+    async getDatosGenerales(startDate = null, endDate = null) {
+        let url = `${this.basePath}/general/combined-data`;
+        const params = new URLSearchParams();
+        
+        if (startDate) {
+            params.append('start_date', startDate);
+        }
+        if (endDate) {
+            params.append('end_date', endDate);
+        }
+        
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
+        
+        return await apiClient.get(url);
     }
 }
 

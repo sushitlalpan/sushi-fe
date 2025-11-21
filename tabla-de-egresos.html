@@ -54,6 +54,7 @@
         </div>
     </main>
     <script src="js/env.js"></script>
+    <script src="js/api-client.js"></script>
     <script src="js/egresos.js"></script>
     <script>
     document.addEventListener("DOMContentLoaded", function() {
@@ -117,27 +118,33 @@
     async function loadData() {
         try {
             const data = await egresosAPI.getEgresosList();
-            const records = data.registros || [];
+            const records = data.expenses || [];
 
             if (records.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="${currentHeaderColCount}" class="no-data-cell">No hay datos para mostrar.</td></tr>`;
                 return;
             }
 
-            allTableRowsData = records.map((record, index) => ({
-                id: index,
-                date: record.FECHA || '',
-                compra: record.COMPRA_SERVICIO || '',
-                lugarCompra: record.LUGAR_COMPRA || '',
-                concepto: record.CONCEPTO || '',
-                sucursal: record.SUCURSAL || '',
-                cantidad: record.CANTIDAD || '',
-                udm: record.UDM || '',
-                precio: record.PRECIO || 0,
-                costoUDM: '',
-                status: 'white',
-                observation: ''
-            }));
+            allTableRowsData = records.map((record, index) => {
+                const cantidad = parseNumber(record.quantity || 0);
+                const totalAmount = parseNumber(record.total_amount || 0);
+                const costoUDM = cantidad > 0 ? (totalAmount / cantidad) : 0;
+                
+                return {
+                    id: record.id || index,
+                    date: record.expense_date || '',
+                    compra: record.expense_description || '',
+                    lugarCompra: record.vendor_payee || '',
+                    concepto: record.expense_category || '',
+                    sucursal: record.branch_name || '',
+                    cantidad: record.quantity || '',
+                    udm: record.unit_of_measure || '',
+                    precio: record.total_amount || 0,
+                    costoUDM: costoUDM.toFixed(2),
+                    status: 'white',
+                    observation: ''
+                };
+            });
 
             const uniqueSucursales = new Set(allTableRowsData.map(row => row.sucursal).filter(Boolean));
             populateSucursalFilter(uniqueSucursales);

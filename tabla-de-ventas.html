@@ -66,6 +66,7 @@
         </div>
     </main>
     <script src="js/env.js"></script>
+    <script src="js/api-client.js"></script>
     <script src="js/sales.js"></script>
     <script>
     document.addEventListener("DOMContentLoaded", function() {
@@ -144,7 +145,7 @@
     async function loadData() {
         try {
             const data = await salesAPI.getSalesList();
-            const records = data.registros || [];
+            const records = data.sales || [];
 
             if (records.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="${currentHeaderColCount}" class="no-data-cell">No hay datos para mostrar.</td></tr>`;
@@ -153,26 +154,26 @@
 
             allTableRowsData = records.map((record, i) => {
                 const rowDataObject = {
-                    id: `row-${i}`,
-                    fechaCorte: record['FECHA DE CORTE'] || '',
-                    noCierre: record['NO. CIERRE'] || '',
-                    ventasTotales: record['VENTAS TOTALES'] || 0,
-                    tarjetaSegunITPV: record['TARJETA SEGÚN ITPV'] || 0,
-                    devolucionTarjeta: record['DEVOLUCIÓN EN TARJETA'] || 0,
-                    tarjetaKiwi: record['TARJETA/ KIWI'] || 0,
-                    transfer: record['TRANSFER'] || 0,
-                    totalTarjetaReal: record['TOTAL TARJETA REAL'] || 0,
-                    efectivo: record['EFECTIVO'] || 0,
-                    devolucionEfectivo: record['DEVOLUCIÓN EN EFECTIVO'] || 0,
-                    totalEfectivoReal: record['TOTAL EN EFECTIVO REAL'] || 0,
-                    diferenciaRevisar: record['DIFERENCIA REVISAR'] || '',
-                    sucursal: record['SUCURSAL'] || '',
-                    noPagos: record['NO. PAGOS'] || 0,
-                    ticketPromedio: record['TICKET PROMEDIO'] || 0,
-                    totalComisionKiwi: record['TOTAL COMISIÓN KIWI'] || 0,
-                    totalSinComision: record['TOTAL SIN COMISIÓN'] || 0,
-                    totalIngresos: record['TOTAL DE INGRESOS'] || 0,
-                    notas: record['NOTAS'] || '',
+                    id: record.id || `row-${i}`,
+                    fechaCorte: record.closure_date || '',
+                    noCierre: record.closure_number || '',
+                    ventasTotales: record.sales_total || 0,
+                    tarjetaSegunITPV: record.card_itpv || 0,
+                    devolucionTarjeta: record.card_refund || 0,
+                    tarjetaKiwi: record.card_kiwi || 0,
+                    transfer: record.transfer_amt || 0,
+                    totalTarjetaReal: record.card_total || 0,
+                    efectivo: record.cash_amt || 0,
+                    devolucionEfectivo: record.cash_refund || 0,
+                    totalEfectivoReal: record.cash_total || 0,
+                    diferenciaRevisar: record.discrepancy || '',
+                    sucursal: record.branch_name || '',
+                    noPagos: record.payments_nbr || 0,
+                    ticketPromedio: record.avg_sale || 0,
+                    totalComisionKiwi: record.kiwi_fee_total || 0,
+                    totalSinComision: record.card_kiwi_minus_fee || 0,
+                    totalIngresos: record.revenue_total || 0,
+                    notas: record.notes || '',
                     status: 'white',
                     observation: ''
                 };

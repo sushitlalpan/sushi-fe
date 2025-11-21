@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Panel Profesional - Nómina</title>
     <link rel="stylesheet" href="css/grafica-nomina.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 </head>
+
 <body>
 
     <main id="main-content">
@@ -49,6 +51,7 @@
         </div>
     </main>
     <script src="js/env.js"></script>
+    <script src="js/api-client.js"></script>
     <script src="js/branches.js"></script>
     <script src="js/nomina.js"></script>
     <script>
@@ -58,7 +61,7 @@
         // Registrar plugins de Chart.js una sola vez
         Chart.register(ChartDataLabels);
 
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function () {
             initializeDashboard();
         });
 
@@ -74,18 +77,20 @@
         async function loadNominaData() {
             try {
                 const data = await nominaAPI.getNominaList();
-                const registros = data.registros || [];
+                const payrollRecords = data.payroll_records || [];
 
                 // Mapear los datos del backend al formato que esperan las gráficas
-                originalData = registros.map(item => ({
-                    fecha: item.FECHA ? new Date(item.FECHA + 'T00:00:00') : null,
-                    colaborador: item.OPERADOR,
-                    diasLaborados: parseInt(item.DIAS_LABORADOS) || 0,
-                    sucursal: item.SUCURSAL,
-                    nomina: parseFloat(item.CANTIDAD) || 0, // 'CANTIDAD' es el costo de la nómina
-                    tipoNomina: item.TIPO_NOMINA
-                }));
-                
+                originalData = payrollRecords.map(item => ({
+                    fecha: item.date ? new Date(item.date) : null,
+                    colaborador: item.worker_username || 'N/A',
+                    diasLaborados: parseInt(item.days_worked) || 0,
+                    sucursal: item.branch_name || 'N/A',
+                    branchId: item.branch_id,
+                    nomina: parseFloat(item.amount) || 0,
+                    tipoNomina: item.payroll_type || 'N/A',
+                    notas: item.notes || ''
+                })).filter(item => item.fecha && !isNaN(item.fecha));
+
                 renderCharts(originalData);
             } catch (error) {
                 console.error('Error al cargar datos de nómina:', error);
@@ -99,10 +104,20 @@
                 const sucursales = data.branches || [];
                 const select = document.getElementById('filtroSucursal');
                 select.innerHTML = '<option value="all">Todas las Sucursales</option>';
-                sucursales.sort().forEach(s => {
+
+                // Sort branches by name
+                const sortedBranches = sucursales.sort((a, b) => {
+                    const nameA = typeof a === 'string' ? a : (a.name || 'N/A');
+                    const nameB = typeof b === 'string' ? b : (b.name || 'N/A');
+                    return nameA.localeCompare(nameB);
+                });
+
+                sortedBranches.forEach(branch => {
+                    const branchName = typeof branch === 'string' ? branch : (branch.name || 'N/A');
+                    const branchId = typeof branch === 'string' ? branch : (branch.id || branchName);
                     const opt = document.createElement('option');
-                    opt.value = s;
-                    opt.textContent = s;
+                    opt.value = branchId;
+                    opt.textContent = branchName;
                     select.appendChild(opt);
                 });
             } catch (error) {
@@ -115,19 +130,19 @@
             const sucursal = document.getElementById('filtroSucursal').value;
             const fechaInicioStr = document.getElementById('fechaInicio').value;
             const fechaFinStr = document.getElementById('fechaFin').value;
-            
+
             const start = fechaInicioStr ? new Date(fechaInicioStr + 'T00:00:00') : null;
             const end = fechaFinStr ? new Date(fechaFinStr + 'T00:00:00') : null;
-            
+
             return originalData.filter(item => {
                 if (!item.fecha || isNaN(item.fecha)) return false;
-                if (sucursal !== 'all' && item.sucursal !== sucursal) return false;
+                if (sucursal !== 'all' && item.branchId !== sucursal) return false;
                 if (start && item.fecha < start) return false;
                 if (end && item.fecha > end) return false;
                 return true;
             });
         }
-        
+
         function getWeekNumber(date) {
             const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
             d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -137,15 +152,15 @@
 
         function renderCharts(data) {
             Object.values(charts).forEach(chart => {
-                if(chart) chart.destroy();
+                if (chart) chart.destroy();
             });
 
             const byColaborador = data.reduce((acc, { colaborador, nomina }) => {
                 if (colaborador) acc[colaborador] = (acc[colaborador] || 0) + nomina;
                 return acc;
             }, {});
-            const topColaboradores = Object.entries(byColaborador).sort(([,a],[,b]) => b-a).slice(0, 10);
-            
+            const topColaboradores = Object.entries(byColaborador).sort(([, a], [, b]) => b - a).slice(0, 10);
+
             const bySucursal = data.reduce((acc, { sucursal, nomina }) => {
                 if (sucursal) {
                     if (!acc[sucursal]) acc[sucursal] = { total: 0, count: 0 };
@@ -158,13 +173,13 @@
 
             const monthly = data.reduce((acc, { fecha, nomina }) => {
                 if (fecha) {
-                    const key = `${fecha.getFullYear()}-${String(fecha.getMonth()+1).padStart(2,'0')}`;
+                    const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
                     acc[key] = (acc[key] || 0) + nomina;
                 }
                 return acc;
             }, {});
             const months = Object.keys(monthly).sort();
-            
+
             const weekly = data.reduce((acc, { fecha, diasLaborados }) => {
                 if (fecha) {
                     const key = `Semana ${getWeekNumber(fecha)}`;
@@ -172,23 +187,38 @@
                 }
                 return acc;
             }, {});
-            const weeks = Object.keys(weekly).sort((a,b) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1]));
-            
+            const weeks = Object.keys(weekly).sort((a, b) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1]));
+
             const byTipoNomina = data.reduce((acc, { tipoNomina, nomina }) => {
                 if (tipoNomina) acc[tipoNomina] = (acc[tipoNomina] || 0) + nomina;
                 return acc;
             }, {});
 
-            const tooltipCurrency = { plugins: { tooltip: { callbacks: { label: ctx => `$${ctx.parsed.toLocaleString('es-MX', {minimumFractionDigits: 2})}` } } } };
+            const tooltipCurrency = {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const value = typeof ctx.parsed === 'object' ? (ctx.parsed.y || ctx.parsed) : ctx.parsed;
+                                return `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+                            }
+                        }
+                    }
+                }
+            };
             const chartColors = ['#e94a7e', '#f0d44c', '#41c5d3', '#9b59b6', '#3498db', '#e67e22', '#2ecc71'];
 
             charts.topColaboradores = new Chart('topColaboradores', { type: 'bar', data: { labels: topColaboradores.map(([name]) => name), datasets: [{ label: 'Total Nómina', data: topColaboradores.map(([, val]) => val), backgroundColor: '#e94a7e' }] }, options: tooltipCurrency });
             charts.promedioPorSucursal = new Chart('promedioPorSucursal', { type: 'bar', data: { labels: labelsSucursal, datasets: [{ label: 'Promedio de Nómina', data: labelsSucursal.map(s => bySucursal[s].total / bySucursal[s].count), backgroundColor: '#f0d44c' }] }, options: tooltipCurrency });
             charts.nominasMensuales = new Chart('nominasMensuales', { type: 'line', data: { labels: months, datasets: [{ label: 'Nómina Mensual', data: months.map(m => monthly[m]), borderColor: '#41c5d3', backgroundColor: 'rgba(65, 197, 211, 0.2)', fill: true, tension: 0.3 }] }, options: tooltipCurrency });
-            charts.diasLaboradosSemanal = new Chart('diasLaboradosSemanal', { type: 'bar', data: { labels: weeks, datasets: [{ label: 'Días Laborados', data: weeks.map(w => weekly[w]), backgroundColor: '#2ecc71' }] }, options: { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed} días` } } } } });
+            charts.diasLaboradosSemanal = new Chart('diasLaboradosSemanal', { type: 'bar', data: { labels: weeks, datasets: [{ label: 'Días Laborados', data: weeks.map(w => weekly[w]), backgroundColor: '#2ecc71' }] }, options: { plugins: { tooltip: { callbacks: { label: ctx => {
+                const value = typeof ctx.parsed === 'object' ? (ctx.parsed.y || ctx.parsed) : ctx.parsed;
+                return `${value} días`;
+            } } } } } });
             charts.tipoNominaDonut = new Chart('tipoNominaDonut', { type: 'doughnut', data: { labels: Object.keys(byTipoNomina), datasets: [{ data: Object.values(byTipoNomina), backgroundColor: ['#e94a7e', '#3498db', '#9b59b6'] }] }, options: { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString('es-MX')}` } } } } });
             charts.nominasPorSucursalDonut = new Chart('nominasPorSucursalDonut', { type: 'pie', data: { labels: labelsSucursal, datasets: [{ data: labelsSucursal.map(s => bySucursal[s].total), backgroundColor: chartColors }] }, options: { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString('es-MX')}` } } } } });
         }
     </script>
 </body>
+
 </html>

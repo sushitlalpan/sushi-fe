@@ -212,3 +212,18 @@ tbody tr:nth-child(even) {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+/* Delete button styling */
+.delete-btn {
+    background-color: var(--danger);
+    color: var(--white);
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+}
+.delete-btn:hover {
+    background-color: var(--danger-hover);
+}
