@@ -11,13 +11,28 @@ class ApiClient {
     }
     
     getApiUrl() {
-        // Wait for window.env to be available or provide fallback
+        // Check multiple sources for API URL
         if (window.env && window.env.API_URL) {
             return window.env.API_URL;
         }
-        // Fallback for development
-        console.warn('window.env.API_URL not found, using fallback');
-        return 'http://localhost:8000';
+        
+        // Environment detection for automatic URL selection
+        const hostname = window.location.hostname;
+        
+        if (hostname === 'sushitlalpan.netlify.app') {
+            // Production Netlify deployment
+            return 'https://sushitlalpan-service.up.railway.app';
+        } else if (hostname.includes('.netlify.app')) {
+            // Preview/branch deployments on Netlify
+            return 'https://sushitlalpan-service.up.railway.app';
+        } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            // Local development
+            return 'http://localhost:8000';
+        } else {
+            // Default fallback
+            console.warn('Unknown environment, using Railway production API');
+            return 'https://sushitlalpan-service.up.railway.app';
+        }
     }
 
     // Get the auth token from sessionStorage
@@ -153,25 +168,7 @@ function initializeApiClient() {
     return apiClient;
 }
 
-// Ensure apiClient is always available when accessed
-Object.defineProperty(window, 'apiClient', {
-    get: function() {
-        if (!apiClient) {
-            apiClient = new ApiClient();
-        }
-        return apiClient;
-    },
-    configurable: true
-});
+// Initialize immediately - no longer dependent on env.js
+apiClient = new ApiClient();
 
-// Try to initialize immediately if env is available
-if (window.env && window.env.API_URL) {
-    apiClient = new ApiClient();
-} else {
-    // Wait for DOM load to ensure env.js has loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        if (!apiClient) {
-            apiClient = new ApiClient();
-        }
-    });
-}
+console.log('ApiClient initialized with URL:', apiClient.baseUrl);
