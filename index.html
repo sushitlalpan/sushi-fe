@@ -172,7 +172,8 @@
             const dashboardText = document.getElementById('connectionStatusText');
 
             try {
-                const response = await fetch(`${window.env.API_URL}/`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+                // Use the API client's base URL instead of window.env.API_URL
+                const response = await fetch(`${apiClient.baseUrl}/`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
                 if (response.ok) {
                     if (loginIndicator) loginIndicator.className = 'status-dot connected';
                     if (loginText) loginText.textContent = 'Servidor Conectado';
@@ -182,6 +183,7 @@
                     throw new Error('Respuesta no exitosa');
                 }
             } catch (error) {
+                console.log('Server status check failed:', error);
                 if (loginIndicator) loginIndicator.className = 'status-dot disconnected';
                 if (loginText) loginText.textContent = 'Servidor Desconectado';
                 if (dashboardIndicator) dashboardIndicator.className = 'status-dot disconnected';
@@ -204,7 +206,7 @@
             checkServerStatus();
             updateClock();
             setInterval(updateClock, 1000);
-            setInterval(checkServerStatus, 30000); // Verifica cada 30 segundos
+            setInterval(checkServerStatus, 1800000); // Verifica cada 30 minutos
         });
     </script>
 </body>
