@@ -11,6 +11,10 @@ class ApiClient {
     }
     
     getApiUrl() {
+        // Constants
+        const RAILWAY_API_URL = 'https://sushitlalpan-service.up.railway.app';
+        const LOCAL_API_URL = 'http://localhost:8000';
+        
         // Check multiple sources for API URL
         if (window.env && window.env.API_URL) {
             return window.env.API_URL;
@@ -21,17 +25,17 @@ class ApiClient {
         
         if (hostname === 'sushitlalpan.netlify.app') {
             // Production Netlify deployment
-            return 'https://sushitlalpan-service.up.railway.app';
+            return RAILWAY_API_URL;
         } else if (hostname.includes('.netlify.app')) {
             // Preview/branch deployments on Netlify
-            return 'https://sushitlalpan-service.up.railway.app';
+            return RAILWAY_API_URL;
         } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
             // Local development
-            return 'http://localhost:8000';
+            return LOCAL_API_URL;
         } else {
             // Default fallback
             console.warn('Unknown environment, using Railway production API');
-            return 'https://sushitlalpan-service.up.railway.app';
+            return RAILWAY_API_URL;
         }
     }
 
