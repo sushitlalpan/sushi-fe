@@ -172,7 +172,6 @@
             const dashboardText = document.getElementById('connectionStatusText');
 
             try {
-                // Use the API client's base URL instead of window.env.API_URL
                 const response = await fetch(`${apiClient.baseUrl}/`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
                 if (response.ok) {
                     if (loginIndicator) loginIndicator.className = 'status-dot connected';

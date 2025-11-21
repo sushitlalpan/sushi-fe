@@ -1,5 +1,4 @@
 // API Client with automatic authentication token handling
-// Requires window.env.API_URL to be defined
 
 class ApiClient {
     constructor() {
@@ -14,11 +13,6 @@ class ApiClient {
         // Constants
         const RAILWAY_API_URL = 'https://sushitlalpan-service.up.railway.app';
         const LOCAL_API_URL = 'http://localhost:8000';
-        
-        // Check multiple sources for API URL
-        if (window.env && window.env.API_URL) {
-            return window.env.API_URL;
-        }
         
         // Environment detection for automatic URL selection
         const hostname = window.location.hostname;
