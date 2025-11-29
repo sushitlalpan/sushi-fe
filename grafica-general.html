@@ -47,6 +47,10 @@
         <div class="stat-value" id="margenNeto">$0.00</div>
       </div>
       <div class="stat-card">
+        <div class="stat-title">Porcentaje de Margen</div>
+        <div class="stat-value" id="porcentajeMargen">0%</div>
+      </div>
+      <div class="stat-card">
         <div class="stat-title">Porcentaje de Egresos s/ Ventas</div>
         <div class="stat-value" id="porcentajeEgresos">0%</div>
       </div>
@@ -158,12 +162,15 @@
       const totalSales = parseFloat(summary.total_sales || 0);
       const totalExpenses = parseFloat(summary.total_expenses || 0);
       const totalPayroll = parseFloat(summary.total_payroll || 0);
+      const netProfit = parseFloat(summary.net_profit || 0);
       
       const expensePercentage = totalSales > 0 ? ((totalExpenses / totalSales) * 100).toFixed(1) : 0;
       const payrollPercentage = totalSales > 0 ? ((totalPayroll / totalSales) * 100).toFixed(1) : 0;
+      const marginPercentage = totalSales > 0 ? ((netProfit / totalSales) * 100).toFixed(1) : 0;
       
       document.getElementById('porcentajeEgresos').textContent = `${expensePercentage}%`;
       document.getElementById('porcentajeNomina').textContent = `${payrollPercentage}%`;
+      document.getElementById('porcentajeMargen').textContent = `${marginPercentage}%`;
     }
 
     function filterData(data, sucursal, startDate, endDate) {
@@ -253,6 +260,7 @@
       document.getElementById('margenNeto').textContent = formatCurrency(margenNeto);
       document.getElementById('porcentajeEgresos').textContent = totalVentas > 0 ? `${((totalEgresos / totalVentas) * 100).toFixed(1)}%` : '0%';
       document.getElementById('porcentajeNomina').textContent = totalVentas > 0 ? `${((totalNomina / totalVentas) * 100).toFixed(1)}%` : '0%';
+      document.getElementById('porcentajeMargen').textContent = totalVentas > 0 ? `${((margenNeto / totalVentas) * 100).toFixed(1)}%` : '0%';
 
       if (chartInstance) chartInstance.destroy();
 

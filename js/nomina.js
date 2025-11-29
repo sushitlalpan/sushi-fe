@@ -7,8 +7,9 @@ class NominaAPI {
     }
 
     // Fetch nomina list
-    async getNominaList() {
-        return await apiClient.get(`${this.basePath}/payroll`);
+    async getNominaList(skip = 0) {
+        const params = skip > 0 ? `?skip=${skip}` : '';
+        return await apiClient.get(`${this.basePath}/payroll${params}`);
     }
 
     // Download nomina data as Excel
@@ -38,6 +39,16 @@ class NominaAPI {
     // Submit new nomina record
     async submitNomina(nominaData) {
         return await apiClient.post(`${this.basePath}/payroll`, nominaData);
+    }
+
+    // Review payroll record
+    async reviewPayroll(payrollId, reviewUpdate) {
+        return await apiClient.patch(`${this.basePath}/payroll/${payrollId}/review`, reviewUpdate);
+    }
+
+    // Delete payroll record
+    async deletePayroll(payrollId) {
+        return await apiClient.delete(`${this.basePath}/payroll/${payrollId}`);
     }
 }
 

@@ -18,11 +18,11 @@ th, td { padding: 10px 12px; border: 1px solid #ccc; font-size: 14px; text-align
 tbody tr:nth-child(even) { background-color: #f9f9f9; }
 tbody tr:hover { background-color: #eef8fb; }
 .color-select { width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ccc; background-color: var(--white); cursor: pointer; }
-tr[data-status="green"] { background-color: var(--vivid-green) !important; }
-tr[data-status="red"] { background-color: var(--vivid-red) !important; }
-tr[data-status="white"] { background-color: var(--white) !important; }
-tr[data-status="white"]:nth-child(even) { background-color: #f9f9f9 !important; }
-tr[data-status="white"]:hover { background-color: #eef8fb !important; }
+tr[data-status="approved"] { background-color: var(--vivid-green) !important; }
+tr[data-status="rejected"] { background-color: var(--vivid-red) !important; }
+tr[data-status="pending"] { background-color: var(--white) !important; }
+tr[data-status="pending"]:nth-child(even) { background-color: #f9f9f9 !important; }
+tr[data-status="pending"]:hover { background-color: #eef8fb !important; }
 .summary-row { font-weight: bold; background-color: #e0e0e0; }
 .summary-row.total { background-color: #c9e6f1; }
 .summary-row.average { background-color: #f0e6c9; }

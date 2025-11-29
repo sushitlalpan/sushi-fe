@@ -7,8 +7,9 @@ class SalesAPI {
     }
 
     // Fetch sales list
-    async getSalesList() {
-        return await apiClient.get(`${this.basePath}/sales`);
+    async getSalesList(skip = 0) {
+        const params = skip > 0 ? `?skip=${skip}` : '';
+        return await apiClient.get(`${this.basePath}/sales${params}`);
     }
 
     // Download sales data as Excel
@@ -38,6 +39,16 @@ class SalesAPI {
     // Submit sales data as JSON
     async submitSales(salesData) {
         return await apiClient.post(`${this.basePath}/sales`, salesData);
+    }
+
+    // Review sales record
+    async reviewSales(saleId, reviewUpdate) {
+        return await apiClient.patch(`${this.basePath}/sales/${saleId}/review`, reviewUpdate);
+    }
+
+    // Delete sales record
+    async deleteSales(saleId) {
+        return await apiClient.delete(`${this.basePath}/sales/${saleId}`);
     }
 }
 
