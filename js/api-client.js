@@ -66,6 +66,12 @@ class ApiClient {
             headers: this.getHeaders(additionalHeaders)
         });
         
+        if (response.status === 401 && !this.isLoginEndpoint(endpoint)) {
+            // Token expired - redirect to login (but not for login attempts)
+            this.handleTokenExpiration();
+            return;
+        }
+        
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
@@ -85,6 +91,12 @@ class ApiClient {
         }
 
         const response = await fetch(`${this.baseUrl}${endpoint}`, config);
+        
+        if (response.status === 401 && !this.isLoginEndpoint(endpoint)) {
+            // Token expired - redirect to login (but not for login attempts)
+            this.handleTokenExpiration();
+            return;
+        }
         
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
@@ -106,6 +118,38 @@ class ApiClient {
 
         const response = await fetch(`${this.baseUrl}${endpoint}`, config);
         
+        if (response.status === 401 && !this.isLoginEndpoint(endpoint)) {
+            // Token expired - redirect to login (but not for login attempts)
+            this.handleTokenExpiration();
+            return;
+        }
+        
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        
+        return await response.json();
+    }
+
+    // Authenticated PATCH request with JSON body
+    async patch(endpoint, data = null, additionalHeaders = {}) {
+        const config = {
+            method: 'PATCH',
+            headers: this.getHeaders(additionalHeaders)
+        };
+
+        if (data !== null) {
+            config.body = JSON.stringify(data);
+        }
+
+        const response = await fetch(`${this.baseUrl}${endpoint}`, config);
+        
+        if (response.status === 401 && !this.isLoginEndpoint(endpoint)) {
+            // Token expired - redirect to login (but not for login attempts)
+            this.handleTokenExpiration();
+            return;
+        }
+        
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
@@ -119,6 +163,12 @@ class ApiClient {
             method: 'DELETE',
             headers: this.getHeaders(additionalHeaders)
         });
+        
+        if (response.status === 401 && !this.isLoginEndpoint(endpoint)) {
+            // Token expired - redirect to login (but not for login attempts)
+            this.handleTokenExpiration();
+            return;
+        }
         
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
@@ -140,11 +190,29 @@ class ApiClient {
 
         const response = await fetch(`${this.baseUrl}${endpoint}`, config);
         
+        if (response.status === 401 && !this.isLoginEndpoint(endpoint)) {
+            // Token expired - redirect to login (but not for login attempts)
+            this.handleTokenExpiration();
+            return;
+        }
+        
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
         
         return await response.blob();
+    }
+
+    // Handle token expiration by redirecting to login
+    handleTokenExpiration() {
+        console.warn('Session token expired. Redirecting to login...');
+        this.clearAuth();
+        window.location.href = '/index.html';
+    }
+
+    // Check if current request is a login attempt
+    isLoginEndpoint(endpoint) {
+        return endpoint.includes('/login') || endpoint.includes('/auth/login') || endpoint.includes('/authenticate');
     }
 
     // Clear all authentication data (for logout)

@@ -46,16 +46,47 @@
                         <th>PRECIO</th>
                         <th>COSTO X UDM</th>
                         <th>ESTADO</th>
+                        <th>ACCIONES</th>
                     </tr>
                 </thead>
                 <tbody>
                 </tbody>
             </table>
+            
+            <!-- Pagination Controls -->
+            <div class="pagination-container" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div class="pagination-info">
+                    <span id="recordsInfo">Registros: 0 de 0</span>
+                </div>
+                <div class="pagination-controls">
+                    <button id="firstPageBtn" onclick="goToPage(1)" disabled>Primera</button>
+                    <button id="prevPageBtn" onclick="goToPage(currentPage - 1)" disabled>Anterior</button>
+                    <span id="pageInfo">Página 1 de 1</span>
+                    <button id="nextPageBtn" onclick="goToPage(currentPage + 1)" disabled>Siguiente</button>
+                    <button id="lastPageBtn" onclick="goToPage(totalPages)" disabled>Última</button>
+                </div>
+            </div>
         </div>
     </main>
     <script src="js/api-client.js"></script>
     <script src="js/egresos.js"></script>
     <script>
+    // Pagination functions
+    function updatePaginationUI() {
+        document.getElementById('recordsInfo').textContent = `Registros: ${((currentPage - 1) * recordsPerPage) + 1}-${Math.min(currentPage * recordsPerPage, totalRecords)} de ${totalRecords}`;
+        document.getElementById('pageInfo').textContent = `Página ${currentPage} de ${totalPages}`;
+        
+        document.getElementById('firstPageBtn').disabled = currentPage <= 1;
+        document.getElementById('prevPageBtn').disabled = currentPage <= 1;
+        document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
+        document.getElementById('lastPageBtn').disabled = currentPage >= totalPages;
+    }
+    
+    async function goToPage(page) {
+        if (page < 1 || page > totalPages || page === currentPage) return;
+        await loadData(page);
+    }
+    
     document.addEventListener("DOMContentLoaded", function() {
         loadData();
     });
@@ -71,32 +102,39 @@
 
     let allTableRowsData = [];
     let currentFilteredAndRenderedRows = [];
-    let currentHeaderColCount = 10;
+    const currentHeaderColCount = 12; // Fixed: always includes observation column
+    
+    // Pagination variables
+    let currentPage = 1;
+    let totalPages = 1;
+    let totalRecords = 0;
+    const recordsPerPage = 100;
     const columnsToAggregate = { 'precio': 7 };
 
     function parseNumber(value) {
-        if (typeof value === 'string') {
-            value = value.replace('$', '').replace(/\./g, '').replace(/,/g, '.');
-        }
         const num = parseFloat(value);
         return isNaN(num) ? 0 : num;
     }
 
     function formatCurrency(value) {
-        return value.toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        return value.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    function updateTableHeader(showObservationColumn) {
-        const observationHeader = document.querySelector('.observation-header');
-        if (showObservationColumn && !observationHeader) {
+    function formatWholeNumber(value) {
+        const num = parseNumber(value);
+        return num.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
+    // Observation column is always visible
+    function updateTableHeader() {
+        const observationHeader = tableHeaderRow.querySelector('.observation-header');
+        if (!observationHeader) {
             const newTh = document.createElement('th');
-            newTh.textContent = 'OBSERVACIÓN';
+            newTh.textContent = 'OBSERVACIONES';
             newTh.classList.add('observation-header');
-            tableHeaderRow.appendChild(newTh);
-            currentHeaderColCount = 11;
-        } else if (!showObservationColumn && observationHeader) {
-            observationHeader.remove();
-            currentHeaderColCount = 10;
+            // Insert before ACCIONES column
+            const accionesHeader = tableHeaderRow.querySelector('th:last-child');
+            tableHeaderRow.insertBefore(newTh, accionesHeader);
         }
     }
 
@@ -114,10 +152,17 @@
         return new Date(Date.UTC(year, month - 1, day));
     }
 
-    async function loadData() {
+    async function loadData(page = 1) {
         try {
-            const data = await egresosAPI.getEgresosList();
+            const skip = (page - 1) * recordsPerPage;
+            const data = await egresosAPI.getEgresosList(skip);
             const records = data.expenses || [];
+            
+            // Update pagination info
+            totalRecords = data.total_count || 0;
+            currentPage = page;
+            totalPages = Math.ceil(totalRecords / recordsPerPage);
+            updatePaginationUI();
 
             if (records.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="${currentHeaderColCount}" class="no-data-cell">No hay datos para mostrar.</td></tr>`;
@@ -140,8 +185,8 @@
                     udm: record.unit_of_measure || '',
                     precio: record.total_amount || 0,
                     costoUDM: costoUDM.toFixed(2),
-                    status: 'white',
-                    observation: ''
+                    status: record.review_state || 'pending',
+                    observation: record.review_observations || ''
                 };
             });
 
@@ -191,8 +236,7 @@
         tableBody.innerHTML = '';
         currentFilteredAndRenderedRows = dataToRender;
 
-        const needsObservationColumn = dataToRender.some(row => row.status === 'red');
-        updateTableHeader(needsObservationColumn);
+        updateTableHeader();
 
         if (dataToRender.length === 0) {
             tableBody.innerHTML = `<tr><td colspan="${currentHeaderColCount}" class="no-data-cell">No hay datos que coincidan con los filtros.</td></tr>`;
@@ -209,46 +253,96 @@
             newRow.insertCell().textContent = rowData.lugarCompra;
             newRow.insertCell().textContent = rowData.concepto;
             newRow.insertCell().textContent = rowData.sucursal;
-            newRow.insertCell().textContent = rowData.cantidad;
+            newRow.insertCell().textContent = formatWholeNumber(rowData.cantidad);
             newRow.insertCell().textContent = rowData.udm;
             newRow.insertCell().textContent = formatCurrency(parseNumber(rowData.precio));
-            newRow.insertCell().textContent = rowData.costoUDM;
+            newRow.insertCell().textContent = formatCurrency(parseNumber(rowData.costoUDM));
 
             const statusCell = newRow.insertCell();
             const selectElement = document.createElement('select');
             selectElement.className = 'color-select';
-            selectElement.innerHTML = `<option value="white">Blanco</option><option value="green">Verde</option><option value="red">Rojo</option>`;
+            selectElement.innerHTML = `<option value="pending">Blanco</option><option value="approved">Verde</option><option value="rejected">Rojo</option>`;
             selectElement.value = rowData.status;
             statusCell.appendChild(selectElement);
 
-            if (needsObservationColumn) {
-                const observationCell = newRow.insertCell();
-                observationCell.className = 'observation-cell';
-                const observationInput = document.createElement('input');
-                observationInput.type = 'text';
-                observationInput.className = 'observation-input';
-                observationInput.placeholder = 'Escribir observación...';
-                observationInput.value = rowData.observation;
-                
-                observationInput.addEventListener('input', function() {
+            // Always add observation cell
+            const observationCell = newRow.insertCell();
+            observationCell.className = 'observation-cell';
+            const observationInput = document.createElement('input');
+            observationInput.type = 'text';
+            observationInput.className = 'observation-input';
+            observationInput.placeholder = 'Escribir observación...';
+            observationInput.value = rowData.observation;
+            
+            observationInput.addEventListener('input', function() {
+                const targetRow = allTableRowsData.find(r => r.id == newRow.dataset.rowId);
+                if (targetRow) targetRow.observation = this.value;
+            });
+            observationInput.addEventListener('keydown', async function(e) {
+                if (e.key === 'Enter') {
                     const targetRow = allTableRowsData.find(r => r.id == newRow.dataset.rowId);
-                    if (targetRow) targetRow.observation = this.value;
-                });
-                observationCell.appendChild(observationInput);
-                observationCell.style.display = (rowData.status === 'red') ? '' : 'none';
-            }
+                    if (targetRow && targetRow.id) {
+                        try {
+                            await egresosAPI.reviewExpense(targetRow.id, {
+                                review_state: targetRow.status || 'pending',
+                                review_observations: this.value
+                            });
+                            console.log('Expense observation updated successfully');
+                            alert('Observación actualizada correctamente');
+                        } catch (error) {
+                            console.error('Error updating expense observation:', error);
+                        }
+                    }
+                }
+            });
+            observationCell.appendChild(observationInput);
 
-            selectElement.addEventListener('change', function() {
+            selectElement.addEventListener('change', async function() {
                 const selectedStatus = this.value;
                 const targetRow = allTableRowsData.find(r => r.id == newRow.dataset.rowId);
                 if(targetRow) {
                     targetRow.status = selectedStatus;
-                    if (selectedStatus !== 'red') {
+                    if (selectedStatus !== 'rejected') {
                         targetRow.observation = '';
+                    }
+                    // Call review API
+                    if (targetRow.id) {
+                        try {
+                            // Get current observation from input field
+                            const observationInput = newRow.querySelector('.observation-input');
+                            const currentObservation = observationInput ? observationInput.value : (targetRow.observation || '');
+                            await egresosAPI.reviewExpense(targetRow.id, {
+                                review_state: selectedStatus,
+                                review_observations: currentObservation
+                            });
+                            console.log('Expense status updated successfully');
+                        } catch (error) {
+                            console.error('Error updating expense status:', error);
+                        }
                     }
                 }
                 applyFilters();
             });
+
+            // Add delete button
+            const deleteCell = newRow.insertCell();
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Eliminar';
+            deleteButton.className = 'delete-btn';
+            deleteButton.style.cssText = 'background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;';
+            deleteButton.addEventListener('click', async function() {
+                if (confirm('¿Estás seguro de que quieres eliminar este registro?')) {
+                    try {
+                        await egresosAPI.deleteExpense(rowData.id);
+                        alert('Registro eliminado correctamente');
+                        loadData(); // Reload data from server
+                    } catch (error) {
+                        console.error('Error deleting record:', error);
+                        alert('Error al eliminar el registro');
+                    }
+                }
+            });
+            deleteCell.appendChild(deleteButton);
         });
         calculateAndDisplayTotals(dataToRender);
     }

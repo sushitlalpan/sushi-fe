@@ -7,8 +7,9 @@ class EgresosAPI {
     }
 
     // Fetch egresos list
-    async getEgresosList() {
-        return await apiClient.get(`${this.basePath}/expenses`);
+    async getEgresosList(skip = 0) {
+        const params = skip > 0 ? `?skip=${skip}` : '';
+        return await apiClient.get(`${this.basePath}/expenses${params}`);
     }
 
     // Download egresos data as Excel
@@ -38,6 +39,16 @@ class EgresosAPI {
     // Submit new egreso as JSON
     async submitEgreso(egresoData) {
         return await apiClient.post(`${this.basePath}/expenses`, egresoData);
+    }
+
+    // Review expense record
+    async reviewExpense(expenseId, reviewUpdate) {
+        return await apiClient.patch(`${this.basePath}/expenses/${expenseId}/review`, reviewUpdate);
+    }
+
+    // Delete expense record
+    async deleteExpense(expenseId) {
+        return await apiClient.delete(`${this.basePath}/expenses/${expenseId}`);
     }
 }
 

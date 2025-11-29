@@ -103,6 +103,7 @@
             const loggedInUserInfo = await usersAPI.getLoggedInUser();
             const isAdmin = loggedInUserInfo.is_admin === true;
             const currentUsername = loggedInUserInfo.username || loggedInUserInfo.name;
+            const userBranchId = loggedInUserInfo.branch_id;
 
             if (isAdmin) {
                 // Admin: Load all users and allow selection
@@ -133,14 +134,35 @@
                     operadorSelect.innerHTML = '<option value="" disabled selected>No hay operadores</option>';
                 }
             } else {
-                // Non-admin: Pre-select current user and disable selection
-                const currentUserId = loggedInUserInfo.id;
-                if (currentUsername && currentUserId) {
-                    operadorSelect.innerHTML = `<option value="${currentUserId}" selected>${currentUsername}</option>`;
-                    operadorSelect.disabled = true;
+                // Non-admin: Filter users by branch and pre-select current user
+                const users = await usersAPI.getUsers();
+                const branchUsers = users.filter(user => user.branch_id === userBranchId);
+                
+                if (branchUsers && branchUsers.length > 0) {
+                    operadorSelect.innerHTML = '<option value="" disabled selected>Selecciona un operador</option>';
+                    
+                    const sortedUsers = branchUsers.sort((a, b) => {
+                        const nameA = a.username || a.name || 'N/A';
+                        const nameB = b.username || b.name || 'N/A';
+                        return nameA.localeCompare(nameB);
+                    });
+                    
+                    sortedUsers.forEach(user => {
+                        const username = user.username || user.name || 'N/A';
+                        operadorSelect.innerHTML += `<option value="${user.id}">${username}</option>`;
+                    });
+                    
+                    // Pre-select current user but allow changing
+                    const currentUserId = loggedInUserInfo.id;
+                    if (currentUserId) {
+                        operadorSelect.value = currentUserId;
+                    }
+                    operadorSelect.disabled = false;
                 } else {
-                    operadorSelect.innerHTML = '<option value="" disabled selected>Usuario no identificado</option>';
-                    operadorSelect.disabled = true;
+                    // Fallback to just current user if no branch users found
+                    const currentUserId = loggedInUserInfo.id;
+                    operadorSelect.innerHTML = `<option value="${currentUserId}" selected>${currentUsername}</option>`;
+                    operadorSelect.disabled = false;
                 }
             }
         } catch (error) {
@@ -152,16 +174,33 @@
 
     async function cargarSucursales() {
         try {
+            // Get logged in user info to check if admin and get user's branch
+            const loggedInUserInfo = await usersAPI.getLoggedInUser();
+            const isAdmin = loggedInUserInfo.is_admin === true;
+            const userBranchId = loggedInUserInfo.branch_id;
+            
             const data = await branchesAPI.getBranches();
             if (data.branches && data.branches.length > 0) {
-                sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
-                
-                // Sort branches by name
                 const sortedBranches = data.branches.sort((a, b) => a.name.localeCompare(b.name));
                 
-                sortedBranches.forEach(branch => {
-                    sucursalSelect.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
-                });
+                if (isAdmin) {
+                    // Admin: Show all branches
+                    sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
+                    sortedBranches.forEach(branch => {
+                        sucursalSelect.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
+                    });
+                    sucursalSelect.disabled = false;
+                } else {
+                    // Non-admin: Pre-select user's branch and disable selection
+                    const userBranch = sortedBranches.find(branch => branch.id === userBranchId);
+                    if (userBranch) {
+                        sucursalSelect.innerHTML = `<option value="${userBranch.id}" selected>${userBranch.name}</option>`;
+                        sucursalSelect.disabled = true;
+                    } else {
+                        sucursalSelect.innerHTML = '<option value="" disabled selected>Sucursal no encontrada</option>';
+                        sucursalSelect.disabled = true;
+                    }
+                }
             } else {
                 sucursalSelect.innerHTML = '<option value="" disabled>No hay sucursales</option>';
             }

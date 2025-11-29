@@ -130,7 +130,12 @@
                 }, 500);
                 
             } catch (error) {
-                showMessage(`Error de conexión: ${error.message}`, 'error');
+                // Check if it's a 401 authentication error
+                if (error.message.includes('Error HTTP: 401')) {
+                    showMessage('Nombre de usuario o contraseña inválidos', 'error');
+                } else {
+                    showMessage(`Error de conexión: ${error.message}`, 'error');
+                }
             } finally {
                 loading.classList.remove('show');
             }

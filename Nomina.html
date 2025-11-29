@@ -17,7 +17,7 @@
             <input type="date" id="fecha" name="fecha" required>
           </div>
           <div class="input-group">
-            <label for="operador">Operador</label>
+            <label for="operador">Operador a Pagar</label>
             <select id="operador" name="operador" required>
               <option value="">Cargando...</option>
             </select>
@@ -78,49 +78,64 @@
             const isAdmin = loggedInUserInfo.is_admin === true;
             const currentUserId = loggedInUserInfo.id;
             const currentUsername = loggedInUserInfo.username || loggedInUserInfo.name;
+            const userBranchId = loggedInUserInfo.branch_id;
             
             const users = await usersAPI.getUsers();
-            if (users && users.length > 0) {
-                operadorSelect.innerHTML = '<option value="" disabled>Selecciona un operador</option>';
-                
-                // Sort users by name but keep full user objects
-                const sortedUsers = users.sort((a, b) => {
-                    const nameA = (typeof a === 'string' ? a : a.name || a.username || '');
-                    const nameB = (typeof b === 'string' ? b : b.name || b.username || '');
-                    return nameA.localeCompare(nameB);
-                });
-                
-                sortedUsers.forEach(user => {
-                    const userName = typeof user === 'string' ? user : (user.name || user.username || 'N/A');
-                    const userId = typeof user === 'string' ? user : (user.id || user.user_id || userName);
-                    operadorSelect.innerHTML += `<option value="${userId}" data-name="${userName}">${userName}</option>`;
-                });
-                
-                if (isAdmin) {
-                    // Admin can select any user
-                    operadorSelect.firstElementChild.selected = true;
-                    operadorSelect.disabled = false;
-                } else {
-                    // Non-admin users can only select themselves
+            
+            if (isAdmin) {
+                // Admin: Show all users
+                if (users && users.length > 0) {
+                    operadorSelect.innerHTML = '<option value="" disabled>Selecciona un operador</option>';
+                    
+                    // Sort users by name but keep full user objects
+                    const sortedUsers = users.sort((a, b) => {
+                        const nameA = (typeof a === 'string' ? a : a.name || a.username || '');
+                        const nameB = (typeof b === 'string' ? b : b.name || b.username || '');
+                        return nameA.localeCompare(nameB);
+                    });
+                    
+                    sortedUsers.forEach(user => {
+                        const userName = typeof user === 'string' ? user : (user.name || user.username || 'N/A');
+                        const userId = typeof user === 'string' ? user : (user.id || user.user_id || userName);
+                        operadorSelect.innerHTML += `<option value="${userId}" data-name="${userName}">${userName}</option>`;
+                    });
+                    
+                    // Pre-select current user but allow changing
                     if (currentUserId) {
                         operadorSelect.value = currentUserId;
-                        operadorSelect.disabled = true;
-                    } else if (currentUsername) {
-                        // Fallback: find user by name if ID not available
-                        const userOption = Array.from(operadorSelect.options).find(option => 
-                            option.dataset.name === currentUsername
-                        );
-                        if (userOption) {
-                            operadorSelect.value = userOption.value;
-                            operadorSelect.disabled = true;
-                        }
-                    } else {
-                        operadorSelect.firstElementChild.selected = true;
-                        operadorSelect.disabled = false;
                     }
+                    operadorSelect.disabled = false;
+                } else {
+                    operadorSelect.innerHTML = '<option value="" disabled>No hay operadores</option>';
                 }
             } else {
-                operadorSelect.innerHTML = '<option value="" disabled>No hay operadores</option>';
+                // Non-admin: Filter users by branch
+                const branchUsers = users.filter(user => user.branch_id === userBranchId);
+                
+                if (branchUsers && branchUsers.length > 0) {
+                    operadorSelect.innerHTML = '<option value="" disabled>Selecciona un operador</option>';
+                    
+                    const sortedUsers = branchUsers.sort((a, b) => {
+                        const nameA = a.name || a.username || '';
+                        const nameB = b.name || b.username || '';
+                        return nameA.localeCompare(nameB);
+                    });
+                    
+                    sortedUsers.forEach(user => {
+                        const userName = user.name || user.username || 'N/A';
+                        operadorSelect.innerHTML += `<option value="${user.id}" data-name="${userName}">${userName}</option>`;
+                    });
+                    
+                    // Pre-select current user but allow changing
+                    if (currentUserId) {
+                        operadorSelect.value = currentUserId;
+                    }
+                    operadorSelect.disabled = false;
+                } else {
+                    // Fallback to just current user if no branch users found
+                    operadorSelect.innerHTML = `<option value="${currentUserId}" data-name="${currentUsername}" selected>${currentUsername}</option>`;
+                    operadorSelect.disabled = false;
+                }
             }
         } catch (error) {
             console.error('Error al cargar operadores:', error);
@@ -130,10 +145,13 @@
 
     async function cargarSucursales() {
         try {
+            // Get logged in user info to check if admin and get user's branch
+            const loggedInUserInfo = await usersAPI.getLoggedInUser();
+            const isAdmin = loggedInUserInfo.is_admin === true;
+            const userBranchId = loggedInUserInfo.branch_id;
+            
             const data = await branchesAPI.getBranches();
             if (data.branches && data.branches.length > 0) {
-                sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
-                
                 // Sort branches by name but keep full branch objects
                 const sortedBranches = data.branches.sort((a, b) => {
                     const nameA = (typeof a === 'string' ? a : a.name || '');
@@ -141,11 +159,31 @@
                     return nameA.localeCompare(nameB);
                 });
                 
-                sortedBranches.forEach(branch => {
-                    const branchName = typeof branch === 'string' ? branch : (branch.name || 'N/A');
-                    const branchId = typeof branch === 'string' ? branch : (branch.id || branch.branch_id || branchName);
-                    sucursalSelect.innerHTML += `<option value="${branchId}" data-name="${branchName}">${branchName}</option>`;
-                });
+                if (isAdmin) {
+                    // Admin: Show all branches
+                    sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
+                    sortedBranches.forEach(branch => {
+                        const branchName = typeof branch === 'string' ? branch : (branch.name || 'N/A');
+                        const branchId = typeof branch === 'string' ? branch : (branch.id || branch.branch_id || branchName);
+                        sucursalSelect.innerHTML += `<option value="${branchId}" data-name="${branchName}">${branchName}</option>`;
+                    });
+                    sucursalSelect.disabled = false;
+                } else {
+                    // Non-admin: Pre-select user's branch and disable selection
+                    const userBranch = sortedBranches.find(branch => {
+                        const branchId = typeof branch === 'string' ? branch : (branch.id || branch.branch_id);
+                        return branchId === userBranchId;
+                    });
+                    if (userBranch) {
+                        const branchName = typeof userBranch === 'string' ? userBranch : (userBranch.name || 'N/A');
+                        const branchId = typeof userBranch === 'string' ? userBranch : (userBranch.id || userBranch.branch_id);
+                        sucursalSelect.innerHTML = `<option value="${branchId}" data-name="${branchName}" selected>${branchName}</option>`;
+                        sucursalSelect.disabled = true;
+                    } else {
+                        sucursalSelect.innerHTML = '<option value="" disabled selected>Sucursal no encontrada</option>';
+                        sucursalSelect.disabled = true;
+                    }
+                }
             } else {
                 sucursalSelect.innerHTML = '<option value="" disabled>No hay sucursales</option>';
             }

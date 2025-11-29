@@ -29,12 +29,12 @@
                 <input type="number" id="ventasTotales" name="ventasTotales" step="0.01" required oninput="calcularValoresDerivados()">
             </div>
             <div class="input-group">
-                <label>Tarjeta/Kiwi</label>
-                <input type="text" id="tarjetaKiwi" name="tarjetaKiwi" placeholder="=100+200" oninput="calcularValoresDerivados()">
+                <label>Tarjeta/MP</label>
+                <input type="text" id="tarjetaKiwi" name="tarjetaKiwi" placeholder="Inicia el valor con = para introducir un calculo (=100+200)" oninput="calcularValoresDerivados()">
             </div>
             <div class="input-group">
                 <label>Transferencias</label>
-                <input type="text" id="transferencias" name="transferencias" placeholder="=100+200" oninput="calcularValoresDerivados()">
+                <input type="text" id="transferencias" name="transferencias" placeholder="Inicia el valor con = para introducir un calculo (=100+200)" oninput="calcularValoresDerivados()">
             </div>
             <div class="input-group">
                 <label>Devolución en Tarjeta</label>
@@ -75,7 +75,7 @@
                 <input type="text" id="ticketPromedio" name="ticketPromedio" class="calculated-value" readonly>
             </div>
             <div class="input-group">
-                <label>Total Comisión Kiwi</label>
+                <label>Total Comisión MP</label>
                 <input type="text" id="totalComisionKiwi" name="totalComisionKiwi" class="calculated-value" readonly>
             </div>
             <div class="input-group">
@@ -112,6 +112,7 @@
                 const loggedInUserInfo = await usersAPI.getLoggedInUser();
                 const isAdmin = loggedInUserInfo.is_admin === true;
                 const currentUsername = loggedInUserInfo.username || loggedInUserInfo.name;
+                const userBranchId = loggedInUserInfo.branch_id;
 
                 if (isAdmin) {
                     // Admin: Load all users and allow selection
@@ -142,14 +143,35 @@
                         operadorSelect.innerHTML = '<option value="" disabled selected>No hay operadores</option>';
                     }
                 } else {
-                    // Non-admin: Pre-select current user and disable selection
-                    const currentUserId = loggedInUserInfo.id;
-                    if (currentUsername && currentUserId) {
-                        operadorSelect.innerHTML = `<option value="${currentUserId}" selected>${currentUsername}</option>`;
-                        operadorSelect.disabled = true;
+                    // Non-admin: Filter users by branch and pre-select current user
+                    const users = await usersAPI.getUsers();
+                    const branchUsers = users.filter(user => user.branch_id === userBranchId);
+                    
+                    if (branchUsers && branchUsers.length > 0) {
+                        operadorSelect.innerHTML = '<option value="" disabled selected>Selecciona un operador</option>';
+                        
+                        const sortedUsers = branchUsers.sort((a, b) => {
+                            const nameA = a.username || a.name || 'N/A';
+                            const nameB = b.username || b.name || 'N/A';
+                            return nameA.localeCompare(nameB);
+                        });
+                        
+                        sortedUsers.forEach(user => {
+                            const username = user.username || user.name || 'N/A';
+                            operadorSelect.innerHTML += `<option value="${user.id}">${username}</option>`;
+                        });
+                        
+                        // Pre-select current user but allow changing
+                        const currentUserId = loggedInUserInfo.id;
+                        if (currentUserId) {
+                            operadorSelect.value = currentUserId;
+                        }
+                        operadorSelect.disabled = false;
                     } else {
-                        operadorSelect.innerHTML = '<option value="" disabled selected>Usuario no identificado</option>';
-                        operadorSelect.disabled = true;
+                        // Fallback to just current user if no branch users found
+                        const currentUserId = loggedInUserInfo.id;
+                        operadorSelect.innerHTML = `<option value="${currentUserId}" selected>${currentUsername}</option>`;
+                        operadorSelect.disabled = false;
                     }
                 }
             } catch (error) {
@@ -162,16 +184,33 @@
         async function cargarSucursales() {
             const sucursalSelect = document.getElementById('sucursal');
             try {
+                // Get logged in user info to check if admin and get user's branch
+                const loggedInUserInfo = await usersAPI.getLoggedInUser();
+                const isAdmin = loggedInUserInfo.is_admin === true;
+                const userBranchId = loggedInUserInfo.branch_id;
+                
                 const data = await branchesAPI.getBranches();
                 if (data.branches && data.branches.length > 0) {
-                    sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
-                    
-                    // Sort branches by name
                     const sortedBranches = data.branches.sort((a, b) => a.name.localeCompare(b.name));
                     
-                    sortedBranches.forEach(branch => {
-                        sucursalSelect.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
-                    });
+                    if (isAdmin) {
+                        // Admin: Show all branches
+                        sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
+                        sortedBranches.forEach(branch => {
+                            sucursalSelect.innerHTML += `<option value="${branch.id}">${branch.name}</option>`;
+                        });
+                        sucursalSelect.disabled = false;
+                    } else {
+                        // Non-admin: Pre-select user's branch and disable selection
+                        const userBranch = sortedBranches.find(branch => branch.id === userBranchId);
+                        if (userBranch) {
+                            sucursalSelect.innerHTML = `<option value="${userBranch.id}" selected>${userBranch.name}</option>`;
+                            sucursalSelect.disabled = true;
+                        } else {
+                            sucursalSelect.innerHTML = '<option value="" disabled selected>Sucursal no encontrada</option>';
+                            sucursalSelect.disabled = true;
+                        }
+                    }
                 } else {
                     sucursalSelect.innerHTML = '<option value="" disabled selected>No hay sucursales</option>';
                 }
@@ -183,7 +222,29 @@
         function obtenerValorFormula(formula) {
             if (!formula || !formula.startsWith('=')) return parseFloat(formula) || 0;
             try {
-                return formula.slice(1).split('+').map(n => parseFloat(n.trim())).reduce((s, n) => s + (isNaN(n) ? 0 : n), 0);
+                const expression = formula.slice(1); // Remove the '=' sign
+                // Split by + and - while keeping the operators
+                const tokens = expression.split(/([+-])/).filter(token => token.trim() !== '');
+                let result = 0;
+                let currentOperator = '+';
+                
+                for (let i = 0; i < tokens.length; i++) {
+                    const token = tokens[i].trim();
+                    if (token === '+' || token === '-') {
+                        currentOperator = token;
+                    } else {
+                        const num = parseFloat(token);
+                        if (!isNaN(num)) {
+                            if (currentOperator === '+') {
+                                result += num;
+                            } else if (currentOperator === '-') {
+                                result -= num;
+                            }
+                        }
+                    }
+                }
+                
+                return result;
             } catch (e) { return 0; }
         }
 
