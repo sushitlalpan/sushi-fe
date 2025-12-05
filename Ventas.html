@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Registro de Ventas - Sushi Tlalpan</title>
     <link rel="stylesheet" href="css/ventas.css">
 </head>
+
 <body>
     <div class="form-container">
         <h1>Formulario de Ventas</h1>
@@ -25,20 +27,30 @@
                 <input type="text" id="numeroCierre" name="numeroCierre" required>
             </div>
             <div class="input-group">
-                <label>Ventas Totales</label>
-                <input type="number" id="ventasTotales" name="ventasTotales" step="0.01" required oninput="calcularValoresDerivados()">
+                <label>Ventas Totales (PV)</label>
+                <input type="number" id="ventasTotales" name="ventasTotales" step="0.01" required
+                    oninput="calcularValoresDerivados()">
+            </div>
+            <div class="input-group">
+                <label>Tarjeta Según ITPV</label>
+                <input type="number" id="tarjetaItpv" name="tarjetaItpv" step="0.01" value="0">
             </div>
             <div class="input-group">
                 <label>Tarjeta/MP</label>
-                <input type="text" id="tarjetaKiwi" name="tarjetaKiwi" placeholder="Inicia el valor con = para introducir un calculo (=100+200)" oninput="calcularValoresDerivados()">
+                <input type="text" id="tarjetaKiwi" name="tarjetaKiwi"
+                    placeholder="Inicia el valor con = para introducir un calculo (=100+200)"
+                    oninput="calcularValoresDerivados()">
             </div>
             <div class="input-group">
                 <label>Transferencias</label>
-                <input type="text" id="transferencias" name="transferencias" placeholder="Inicia el valor con = para introducir un calculo (=100+200)" oninput="calcularValoresDerivados()">
+                <input type="text" id="transferencias" name="transferencias"
+                    placeholder="Inicia el valor con = para introducir un calculo (=100+200)"
+                    oninput="calcularValoresDerivados()">
             </div>
             <div class="input-group">
                 <label>Devolución en Tarjeta</label>
-                <input type="number" id="devolucionTarjeta" name="devolucionTarjeta" step="0.01" value="0" oninput="calcularValoresDerivados()">
+                <input type="number" id="devolucionTarjeta" name="devolucionTarjeta" step="0.01" value="0"
+                    oninput="calcularValoresDerivados()">
             </div>
             <div class="input-group">
                 <label>Total Tarjeta Real</label>
@@ -46,11 +58,13 @@
             </div>
             <div class="input-group">
                 <label>Efectivo</label>
-                <input type="number" id="efectivo" name="efectivo" step="0.01" required oninput="calcularValoresDerivados()">
+                <input type="number" id="efectivo" name="efectivo" step="0.01" required
+                    oninput="calcularValoresDerivados()">
             </div>
             <div class="input-group">
                 <label>Devolución en Efectivo</label>
-                <input type="number" id="devolucionEfectivo" name="devolucionEfectivo" step="0.01" value="0" oninput="calcularValoresDerivados()">
+                <input type="number" id="devolucionEfectivo" name="devolucionEfectivo" step="0.01" value="0"
+                    oninput="calcularValoresDerivados()">
             </div>
             <div class="input-group">
                 <label>Total en Efectivo Real</label>
@@ -119,14 +133,14 @@
                     const users = await usersAPI.getUsers();
                     if (users && users.length > 0) {
                         operadorSelect.innerHTML = '<option value="" disabled selected>Selecciona un operador</option>';
-                        
+
                         // Sort users by username and create options with user ID as value
                         const sortedUsers = users.sort((a, b) => {
                             const nameA = typeof a === 'string' ? a : (a.username || a.name || 'N/A');
                             const nameB = typeof b === 'string' ? b : (b.username || b.name || 'N/A');
                             return nameA.localeCompare(nameB);
                         });
-                        
+
                         sortedUsers.forEach(user => {
                             const username = typeof user === 'string' ? user : (user.username || user.name || 'N/A');
                             const userId = typeof user === 'object' ? user.id : username;
@@ -146,21 +160,21 @@
                     // Non-admin: Filter users by branch and pre-select current user
                     const users = await usersAPI.getUsers();
                     const branchUsers = users.filter(user => user.branch_id === userBranchId);
-                    
+
                     if (branchUsers && branchUsers.length > 0) {
                         operadorSelect.innerHTML = '<option value="" disabled selected>Selecciona un operador</option>';
-                        
+
                         const sortedUsers = branchUsers.sort((a, b) => {
                             const nameA = a.username || a.name || 'N/A';
                             const nameB = b.username || b.name || 'N/A';
                             return nameA.localeCompare(nameB);
                         });
-                        
+
                         sortedUsers.forEach(user => {
                             const username = user.username || user.name || 'N/A';
                             operadorSelect.innerHTML += `<option value="${user.id}">${username}</option>`;
                         });
-                        
+
                         // Pre-select current user but allow changing
                         const currentUserId = loggedInUserInfo.id;
                         if (currentUserId) {
@@ -188,11 +202,11 @@
                 const loggedInUserInfo = await usersAPI.getLoggedInUser();
                 const isAdmin = loggedInUserInfo.is_admin === true;
                 const userBranchId = loggedInUserInfo.branch_id;
-                
+
                 const data = await branchesAPI.getBranches();
                 if (data.branches && data.branches.length > 0) {
                     const sortedBranches = data.branches.sort((a, b) => a.name.localeCompare(b.name));
-                    
+
                     if (isAdmin) {
                         // Admin: Show all branches
                         sucursalSelect.innerHTML = '<option value="" disabled selected>Selecciona una sucursal</option>';
@@ -227,7 +241,7 @@
                 const tokens = expression.split(/([+-])/).filter(token => token.trim() !== '');
                 let result = 0;
                 let currentOperator = '+';
-                
+
                 for (let i = 0; i < tokens.length; i++) {
                     const token = tokens[i].trim();
                     if (token === '+' || token === '-') {
@@ -243,7 +257,7 @@
                         }
                     }
                 }
-                
+
                 return result;
             } catch (e) { return 0; }
         }
@@ -279,14 +293,14 @@
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Enviando...';
-            
+
             const form = document.getElementById('cierreForm');
-            
+
             try {
                 // Convert form data to required JSON structure
                 const salesData = {
                     branch_id: document.getElementById('sucursal').value,
-                    card_itpv: "0.00",
+                    card_itpv: document.getElementById('tarjetaItpv').value || "0.00",
                     card_kiwi: document.getElementById('tarjetaKiwi').value || "0.00",
                     card_refund: document.getElementById('devolucionTarjeta').value || "0.00",
                     cash_amt: document.getElementById('efectivo').value || "0.00",
@@ -302,13 +316,13 @@
                 };
 
                 const result = await salesAPI.submitSales(salesData);
-                
+
                 // Assume success unless an error is thrown
                 alert('Reporte guardado exitosamente');
                 form.reset();
                 document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
                 await cargarOperadoresYSeleccionarUsuario();
-                
+
             } catch (error) {
                 console.error('Error al enviar datos:', error);
                 alert('Error de conexión con el servidor.');
@@ -319,4 +333,5 @@
         }
     </script>
 </body>
+
 </html>
