@@ -56,6 +56,7 @@
     <script>
         let originalData = [];
         let charts = {};
+        let currentFilters = {};
 
         // Registrar plugins de Chart.js una sola vez
         Chart.register(ChartDataLabels);
@@ -69,13 +70,18 @@
             await loadNominaData();
 
             document.querySelectorAll('.filters input, .filters select').forEach(el => {
-                el.addEventListener('change', () => renderCharts(filterData()));
+                el.addEventListener('change', () => applyFilters());
             });
         }
 
-        async function loadNominaData() {
+        async function loadNominaData(filters = null) {
             try {
-                const data = await nominaAPI.getNominaList();
+                // Use provided filters or keep current filters
+                if (filters !== null) {
+                    currentFilters = filters;
+                }
+                
+                const data = await nominaAPI.getNominaList(0, currentFilters);
                 const payrollRecords = data.payroll_records || [];
 
                 // Mapear los datos del backend al formato que esperan las gráficas
@@ -95,6 +101,26 @@
                 console.error('Error al cargar datos de nómina:', error);
                 alert('Error al cargar los datos de nómina.');
             }
+        }
+
+        async function applyFilters() {
+            const filters = {};
+            
+            const sucursal = document.getElementById('filtroSucursal').value;
+            const fechaInicioStr = document.getElementById('fechaInicio').value;
+            const fechaFinStr = document.getElementById('fechaFin').value;
+            
+            if (sucursal && sucursal !== 'all') {
+                filters.branch_id = sucursal;
+            }
+            if (fechaInicioStr) {
+                filters.start_date = fechaInicioStr;
+            }
+            if (fechaFinStr) {
+                filters.end_date = fechaFinStr;
+            }
+            
+            await loadNominaData(filters);
         }
 
         async function populateSucursalFilter() {
@@ -123,23 +149,6 @@
                 console.error('Error al cargar sucursales:', error);
                 document.getElementById('filtroSucursal').innerHTML = '<option value="all">Error al cargar</option>';
             }
-        }
-
-        function filterData() {
-            const sucursal = document.getElementById('filtroSucursal').value;
-            const fechaInicioStr = document.getElementById('fechaInicio').value;
-            const fechaFinStr = document.getElementById('fechaFin').value;
-
-            const start = fechaInicioStr ? new Date(fechaInicioStr + 'T00:00:00') : null;
-            const end = fechaFinStr ? new Date(fechaFinStr + 'T00:00:00') : null;
-
-            return originalData.filter(item => {
-                if (!item.fecha || isNaN(item.fecha)) return false;
-                if (sucursal !== 'all' && item.branchId !== sucursal) return false;
-                if (start && item.fecha < start) return false;
-                if (end && item.fecha > end) return false;
-                return true;
-            });
         }
 
         function getWeekNumber(date) {

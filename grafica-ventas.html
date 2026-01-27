@@ -33,6 +33,7 @@
 	<script src="js/sales.js"></script>
 	<script>
 		let originalData = [];
+		let currentFilters = {};
 
         document.addEventListener("DOMContentLoaded", function() {
             initializeDashboard();
@@ -42,7 +43,7 @@
             await populateSucursalFilter();
             await loadSalesData();
             document.querySelectorAll('.filters input, .filters select').forEach(el => {
-                el.addEventListener('change', () => renderCharts(filterData()));
+                el.addEventListener('change', () => applyFilters());
             });
         }
 		
@@ -50,9 +51,14 @@
 			return parseFloat(String(value).replace(/[^0-9.-]/g, '')) || 0;
 		}
 
-		async function loadSalesData() {
+		async function loadSalesData(filters = null) {
 		    try {
-		        const data = await salesAPI.getSalesList();
+		        // Use provided filters or keep current filters
+		        if (filters !== null) {
+		            currentFilters = filters;
+		        }
+		        
+		        const data = await salesAPI.getSalesList(0, currentFilters);
 		        const records = data.sales || [];
 		        
 		        originalData = records.map((record, index) => {
@@ -116,21 +122,27 @@
 			}
 		}
 
-	function filterData() {
-		const sucursal = document.getElementById('filtroSucursal').value;
-		const fechaInicio = document.getElementById('fechaInicio').value;
-		const fechaFin = document.getElementById('fechaFin').value;
-            const start = fechaInicio ? new Date(fechaInicio + 'T00:00:00') : null;
-            const end = fechaFin ? new Date(fechaFin + 'T23:59:59') : null;
+		async function applyFilters() {
+			const filters = {};
+			
+			const sucursal = document.getElementById('filtroSucursal').value;
+			const fechaInicio = document.getElementById('fechaInicio').value;
+			const fechaFin = document.getElementById('fechaFin').value;
+			
+			if (sucursal && sucursal !== 'all') {
+				filters.branch_id = sucursal;
+			}
+			if (fechaInicio) {
+				filters.start_date = fechaInicio;
+			}
+			if (fechaFin) {
+				filters.end_date = fechaFin;
+			}
+			
+			await loadSalesData(filters);
+		}
 
-		return originalData.filter(item => {
-			// Filter by branch: compare branch_id if sucursal is not 'all'
-			if (sucursal !== 'all' && item.branchId !== sucursal) return false;
-			if (start && item.fecha < start) return false;
-			if (end && item.fecha > end) return false;
-			return true;
-		});
-	}		function groupByDate(data, interval = 'day') {
+		function groupByDate(data, interval = 'day') {
 			return data.reduce((acc, item) => {
 				let key = '';
 				switch(interval) {

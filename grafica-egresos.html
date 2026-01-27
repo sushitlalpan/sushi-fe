@@ -46,6 +46,7 @@
     <script>
         let originalData = [];
         let charts = {};
+        let currentFilters = {};
 
         // CORRECCIÓN: Registrar los plugins globalmente una sola vez al inicio.
         Chart.register(ChartDataLabels);
@@ -59,7 +60,7 @@
             await loadEgresosData();
 
             document.querySelectorAll('.filters input, .filters select').forEach(el => {
-                el.addEventListener('change', () => renderCharts(filterData()));
+                el.addEventListener('change', () => applyFilters());
             });
         }
         
@@ -91,9 +92,14 @@
             }
         }
 
-        async function loadEgresosData() {
+        async function loadEgresosData(filters = null) {
             try {
-                const data = await egresosAPI.getEgresosList();
+                // Use provided filters or keep current filters
+                if (filters !== null) {
+                    currentFilters = filters;
+                }
+                
+                const data = await egresosAPI.getEgresosList(0, currentFilters);
                 const expenses = data.expenses || [];
                 
                 originalData = expenses.map(item => ({
@@ -115,21 +121,24 @@
             }
         }
 
-        function filterData() {
+        async function applyFilters() {
+            const filters = {};
+            
             const sucursal = document.getElementById('filtroSucursal').value;
             const fechaInicioStr = document.getElementById('fechaInicio').value;
             const fechaFinStr = document.getElementById('fechaFin').value;
-
-            const fechaInicio = fechaInicioStr ? new Date(fechaInicioStr + 'T00:00:00') : null;
-            const fechaFin = fechaFinStr ? new Date(fechaFinStr + 'T00:00:00') : null;
-
-            return originalData.filter(item => {
-                if (!item.fecha || isNaN(item.fecha)) return false;
-                if (sucursal !== 'all' && item.branchId !== sucursal) return false;
-                if (fechaInicio && item.fecha < fechaInicio) return false;
-                if (fechaFin && item.fecha > fechaFin) return false;
-                return true;
-            });
+            
+            if (sucursal && sucursal !== 'all') {
+                filters.branch_id = sucursal;
+            }
+            if (fechaInicioStr) {
+                filters.start_date = fechaInicioStr;
+            }
+            if (fechaFinStr) {
+                filters.end_date = fechaFinStr;
+            }
+            
+            await loadEgresosData(filters);
         }
         
         function renderCharts(data) {

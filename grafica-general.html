@@ -199,9 +199,9 @@
       const fechaInicio = document.getElementById('fechaInicio').value;
       const fechaFin = document.getElementById('fechaFin').value;
       
-      // Reload data when date range changes
+      // Reload data with filters from backend
       try {
-        const datosGenerales = await datosAPI.getDatosGenerales(fechaInicio, fechaFin);
+        const datosGenerales = await datosAPI.getDatosGenerales(fechaInicio, fechaFin, sucursal);
         
         // Update data with new API response
         ventasData = (datosGenerales.sales_records || []).map(item => ({
@@ -233,13 +233,9 @@
         console.error('Error al actualizar datos:', error);
       }
 
-      const filteredVentas = filterData(ventasData, sucursal, fechaInicio, fechaFin);
-      const filteredEgresos = filterData(egresosData, sucursal, fechaInicio, fechaFin);
-      const filteredNomina = filterData(nominaData, sucursal, fechaInicio, fechaFin);
-
-      const ventasGrouped = groupByDay(filteredVentas);
-      const egresosGrouped = groupByDay(filteredEgresos);
-      const nominaGrouped = groupByDay(filteredNomina);
+      const ventasGrouped = groupByDay(ventasData);
+      const egresosGrouped = groupByDay(egresosData);
+      const nominaGrouped = groupByDay(nominaData);
 
       const allDates = [...new Set([...Object.keys(ventasGrouped), ...Object.keys(egresosGrouped), ...Object.keys(nominaGrouped)].sort())];
 

@@ -7,7 +7,7 @@ class DatosAPI {
     }
 
     // Fetch general data (ventas, egresos, nomina)
-    async getDatosGenerales(startDate = null, endDate = null) {
+    async getDatosGenerales(startDate = null, endDate = null, branchId = null) {
         let url = `${this.basePath}/general/combined-data`;
         const params = new URLSearchParams();
         
@@ -16,6 +16,9 @@ class DatosAPI {
         }
         if (endDate) {
             params.append('end_date', endDate);
+        }
+        if (branchId && branchId !== 'all') {
+            params.append('branch_id', branchId);
         }
         
         if (params.toString()) {
