@@ -134,7 +134,7 @@
                 if (error.message.includes('Error HTTP: 401')) {
                     showMessage('Nombre de usuario o contraseña inválidos', 'error');
                 } else {
-                    showMessage(`Error de conexión: ${error.message}`, 'error');
+                    showMessage(`Error del servidor: ${error.message}`, 'error');
                 }
             } finally {
                 loading.classList.remove('show');

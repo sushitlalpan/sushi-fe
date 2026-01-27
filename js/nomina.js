@@ -6,10 +6,21 @@ class NominaAPI {
         this.basePath = '/api/v1';
     }
 
-    // Fetch nomina list
-    async getNominaList(skip = 0) {
-        const params = skip > 0 ? `?skip=${skip}` : '';
-        return await apiClient.get(`${this.basePath}/payroll${params}`);
+    // Fetch nomina list with filters
+    async getNominaList(skip = 0, filters = {}) {
+        const params = new URLSearchParams();
+        
+        if (skip > 0) params.append('skip', skip);
+        if (filters.worker_id) params.append('worker_id', filters.worker_id);
+        if (filters.branch_id) params.append('branch_id', filters.branch_id);
+        if (filters.payroll_type) params.append('payroll_type', filters.payroll_type);
+        if (filters.start_date) params.append('start_date', filters.start_date);
+        if (filters.end_date) params.append('end_date', filters.end_date);
+        if (filters.order_by) params.append('order_by', filters.order_by);
+        
+        const queryString = params.toString();
+        const url = `${this.basePath}/payroll${queryString ? '?' + queryString : ''}`;
+        return await apiClient.get(url);
     }
 
     // Download nomina data as Excel

@@ -31,7 +31,7 @@
                     </div>
                     <div class="input-group">
                         <label for="phoneNumber">Teléfono</label>
-                        <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="ej: 5512345678">
+                        <input type="tel" id="phoneNumber" name="phoneNumber" placeholder="ej: 5512345678 o vacío" pattern="[0-9]*" inputmode="numeric">
                     </div>
                     <div class="input-group">
                         <label for="branch">Sucursal</label>
@@ -96,13 +96,14 @@
         // Función para mostrar mensajes
         function showMessage(elementId, text, type) {
             const messageDiv = document.getElementById(elementId);
-            messageDiv.textContent = text;
+            // Replace newlines with <br> for proper display
+            messageDiv.innerHTML = text.replace(/\n/g, '<br>');
             messageDiv.className = `message ${type}`;
             messageDiv.style.display = 'block';
             
             setTimeout(() => {
                 messageDiv.style.display = 'none';
-            }, 5000);
+            }, 8000); // Increased timeout for longer error messages
         }
 
         // Función para mostrar/ocultar loading
@@ -178,14 +179,14 @@
                 const result = await usersAPI.deleteUser(userId);
                 
                 // Assume success unless an error is thrown
-                showMessage('delete-message', result.message || 'Usuario eliminado exitosamente', 'success');
+                showMessage('add-message', result.message || 'Usuario eliminado exitosamente', 'success');
                 setTimeout(() => {
                     loadUsers();
                 }, 1000);
                 
             } catch (error) {
                 console.error('Error al eliminar usuario:', error);
-                showMessage('delete-message', `Error de conexión: ${error.message}`, 'error');
+                showMessage('add-message', error.message, 'error');
             }
         }
 
@@ -218,7 +219,7 @@
                 
             } catch (error) {
                 console.error('Error al agregar usuario:', error);
-                showMessage('add-message', `Error de conexión: ${error.message}`, 'error');
+                showMessage('add-message', error.message, 'error');
             } finally {
                 showLoading('add-loading', false);
             }

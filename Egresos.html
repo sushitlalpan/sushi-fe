@@ -81,6 +81,7 @@
       </div>
       <button type="submit" class="submit-btn">Registrar Egreso</button>
     </form>
+    <div id="form-message" class="message" style="display: none; margin-top: 20px; padding: 15px; border-radius: 8px; font-size: 14px;"></div>
   </div>
   <script src="js/api-client.js"></script>
   <script src="js/users.js"></script>
@@ -90,6 +91,30 @@
     const form = document.getElementById('egresoForm');
     const operadorSelect = document.getElementById('operadorSelect');
     const sucursalSelect = document.getElementById('sucursalSelect');
+
+    // Función para mostrar mensajes
+    function showMessage(text, type) {
+        const messageDiv = document.getElementById('form-message');
+        // Replace newlines with <br> for proper display
+        messageDiv.innerHTML = text.replace(/\n/g, '<br>');
+        messageDiv.className = `message ${type}`;
+        messageDiv.style.display = 'block';
+        
+        // Apply styles based on type
+        if (type === 'success') {
+            messageDiv.style.backgroundColor = '#d4edda';
+            messageDiv.style.color = '#155724';
+            messageDiv.style.border = '1px solid #c3e6cb';
+        } else if (type === 'error') {
+            messageDiv.style.backgroundColor = '#f8d7da';
+            messageDiv.style.color = '#721c24';
+            messageDiv.style.border = '1px solid #f5c6cb';
+        }
+        
+        setTimeout(() => {
+            messageDiv.style.display = 'none';
+        }, 8000); // Increased timeout for longer error messages
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
         cargarSucursales();
@@ -241,14 +266,14 @@
         const result = await egresosAPI.submitEgreso(egresoData);
         
         // Assume success unless an error is thrown
-        alert('Egreso registrado exitosamente');
+        showMessage(result.message || 'Egreso registrado exitosamente', 'success');
         form.reset();
         document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
         await cargarOperadoresYSeleccionarUsuario();
         
       } catch (error) {
         console.error('Error al enviar egreso:', error);
-        alert('Error al conectar con el servidor.');
+        showMessage(error.message, 'error');
       } finally {
         submitButton.disabled = false;
         submitButton.textContent = 'Registrar Egreso';

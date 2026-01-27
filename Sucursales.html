@@ -82,13 +82,14 @@
         // Función para mostrar mensajes
         function showMessage(elementId, text, type) {
             const messageDiv = document.getElementById(elementId);
-            messageDiv.textContent = text;
+            // Replace newlines with <br> for proper display
+            messageDiv.innerHTML = text.replace(/\n/g, '<br>');
             messageDiv.className = `message ${type}`;
             messageDiv.style.display = 'block';
             
             setTimeout(() => {
                 messageDiv.style.display = 'none';
-            }, 5000);
+            }, 8000); // Increased timeout for longer error messages
         }
 
         // Función para mostrar/ocultar loading
@@ -154,7 +155,7 @@
                 
             } catch (error) {
                 console.error('Error al agregar sucursal:', error);
-                showMessage('add-message', `Error de conexión: ${error.message}`, 'error');
+                showMessage('add-message', error.message, 'error');
             } finally {
                 showLoading('add-loading', false);
             }
@@ -177,7 +178,7 @@
                 
             } catch (error) {
                 console.error('Error al eliminar sucursal:', error);
-                showMessage('delete-message', `Error de conexión: ${error.message}`, 'error');
+                showMessage('add-message', error.message, 'error');
             }
         }
 

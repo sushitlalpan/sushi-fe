@@ -68,6 +68,7 @@
     </main>
 	<script src="js/api-client.js"></script>
 	<script src="js/nomina.js"></script>
+	<script src="js/branches.js"></script>
 	<script>
     // Pagination functions
     function updatePaginationUI() {
@@ -85,8 +86,9 @@
         await loadData(page);
     }
     
-    document.addEventListener("DOMContentLoaded", function() {
-        loadData();
+    document.addEventListener("DOMContentLoaded", async function() {
+        await loadAllBranches();
+        await loadData();
     });
 
 	const tableBody = document.querySelector('tbody');
@@ -108,6 +110,12 @@
 	let totalRecords = 0;
 	const recordsPerPage = 100;
 	const columnsToAggregate = { 'cantidad': 4 };
+	
+	// Current filters
+	let currentFilters = {};
+	
+	// Track if branches are loaded
+	let branchesLoaded = false;
 
 	function parseNumber(value) {
 		const num = parseFloat(value);
@@ -145,10 +153,30 @@
         return new Date(Date.UTC(year, month - 1, day));
     }
 
-	async function loadData(page = 1) {
+	async function loadAllBranches() {
+		if (branchesLoaded) return; // Only load once
+		
 		try {
+			const result = await branchesAPI.getBranches();
+			if (result.branches && result.branches.length > 0) {
+				const sortedBranches = result.branches.sort((a, b) => a.name.localeCompare(b.name));
+				populateSucursalFilter(sortedBranches);
+				branchesLoaded = true;
+			}
+		} catch (error) {
+			console.error('Error al cargar sucursales:', error);
+		}
+	}
+
+	async function loadData(page = 1, filters = null) {
+		try {
+            // Use provided filters or keep current filters
+            if (filters !== null) {
+                currentFilters = filters;
+            }
+            
             const skip = (page - 1) * recordsPerPage;
-            const data = await nominaAPI.getNominaList(skip);
+            const data = await nominaAPI.getNominaList(skip, currentFilters);
             const records = data.payroll_records || [];
             
             // Update pagination info
@@ -168,6 +196,7 @@
                 colaborador: record.worker_username || '',
                 diasLaborados: record.days_worked || '',
                 sucursal: record.branch_name || '',
+                branchId: record.branch_id || '',
                 cantidad: record.amount || 0,
                 nomina: record.payroll_type || '',
                 notas: record.notes || '',
@@ -175,8 +204,6 @@
                 observation: record.review_observations || ''
             }));
 
-            const uniqueSucursales = new Set(allTableRowsData.map(row => row.sucursal).filter(Boolean));
-			populateSucursalFilter(uniqueSucursales);
 			renderTable(allTableRowsData);
 
 		} catch (error) {
@@ -325,33 +352,47 @@
 		calculateAndDisplayTotals(dataToRender);
 	}
 
-	function populateSucursalFilter(uniqueSucursales) {
-		sucursalFilterSelect.innerHTML = '<option value="">Todas las Sucursales</option>';
-		Array.from(uniqueSucursales).sort().forEach(sucursal => {
-			sucursalFilterSelect.innerHTML += `<option value="${sucursal}">${sucursal}</option>`;
-		});
-	}
-
-	function applyFilters() {
-		const filterStartDate = startDateInput.value ? normalizeDate(startDateInput.value) : null;
-		const filterEndDate = endDateInput.value ? normalizeDate(endDateInput.value) : null;
-		const selectedSucursal = sucursalFilterSelect.value;
+	function populateSucursalFilter(branches) {
+		// Save current selection
+		const currentValue = sucursalFilterSelect.value;
 		
-        const filteredRows = allTableRowsData.filter(row => {
-			const rowDateNormalized = normalizeDate(row.date.split(' ')[0]);
-			const dateMatch = (!filterStartDate || (rowDateNormalized && rowDateNormalized >= filterStartDate)) &&
-							  (!filterEndDate || (rowDateNormalized && rowDateNormalized <= filterEndDate));
-			const sucursalMatch = !selectedSucursal || row.sucursal === selectedSucursal;
-			return dateMatch && sucursalMatch;
+		sucursalFilterSelect.innerHTML = '<option value="">Todas las Sucursales</option>';
+		branches.forEach(branch => {
+			const option = document.createElement('option');
+			option.value = branch.id;
+			option.textContent = branch.name;
+			sucursalFilterSelect.appendChild(option);
 		});
-		renderTable(filteredRows);
+		
+		// Restore previous selection if it exists
+		if (currentValue) {
+			sucursalFilterSelect.value = currentValue;
+		}
 	}
 
-	function clearFilters() {
+	async function applyFilters() {
+		const filters = {};
+		
+		if (startDateInput.value) {
+			filters.start_date = startDateInput.value;
+		}
+		if (endDateInput.value) {
+			filters.end_date = endDateInput.value;
+		}
+		if (sucursalFilterSelect.value) {
+			filters.branch_id = sucursalFilterSelect.value;
+		}
+		
+		// Reset to page 1 when applying filters
+		await loadData(1, filters);
+	}
+
+	async function clearFilters() {
 		startDateInput.value = '';
 		endDateInput.value = '';
 		sucursalFilterSelect.value = '';
-		renderTable(allTableRowsData);
+		// Reset filters and reload from page 1
+		await loadData(1, {});
 	}
 
     async function downloadExcel() {

@@ -59,6 +59,24 @@ class ApiClient {
         return headers;
     }
 
+    // Helper to extract detailed error messages from API responses
+    extractErrorMessage(errorData) {
+        if (errorData.detail && Array.isArray(errorData.detail)) {
+            // FastAPI validation errors - format them nicely
+            return errorData.detail.map(err => {
+                const field = err.loc ? err.loc[err.loc.length - 1] : 'campo';
+                const fieldName = field.replace(/_/g, ' ');
+                return `${fieldName}: ${err.msg}`;
+            }).join('\n');
+        } else if (errorData.detail && typeof errorData.detail === 'string') {
+            // Simple error message
+            return errorData.detail;
+        } else if (errorData.message) {
+            return errorData.message;
+        }
+        return 'Error desconocido del servidor';
+    }
+
     // Authenticated GET request
     async get(endpoint, additionalHeaders = {}) {
         const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -73,7 +91,9 @@ class ApiClient {
         }
         
         if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = this.extractErrorMessage(errorData);
+            throw new Error(errorMessage);
         }
         
         return await response.json();
@@ -99,7 +119,9 @@ class ApiClient {
         }
         
         if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = this.extractErrorMessage(errorData);
+            throw new Error(errorMessage);
         }
         
         return await response.json();
@@ -125,7 +147,9 @@ class ApiClient {
         }
         
         if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = this.extractErrorMessage(errorData);
+            throw new Error(errorMessage);
         }
         
         return await response.json();
@@ -151,7 +175,9 @@ class ApiClient {
         }
         
         if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = this.extractErrorMessage(errorData);
+            throw new Error(errorMessage);
         }
         
         return await response.json();
@@ -171,7 +197,9 @@ class ApiClient {
         }
         
         if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = this.extractErrorMessage(errorData);
+            throw new Error(errorMessage);
         }
         
         return await response.json();

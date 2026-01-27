@@ -6,10 +6,21 @@ class EgresosAPI {
         this.basePath = '/api/v1';
     }
 
-    // Fetch egresos list
-    async getEgresosList(skip = 0) {
-        const params = skip > 0 ? `?skip=${skip}` : '';
-        return await apiClient.get(`${this.basePath}/expenses${params}`);
+    // Fetch egresos list with filters
+    async getEgresosList(skip = 0, filters = {}) {
+        const params = new URLSearchParams();
+        
+        if (skip > 0) params.append('skip', skip);
+        if (filters.worker_id) params.append('worker_id', filters.worker_id);
+        if (filters.branch_id) params.append('branch_id', filters.branch_id);
+        if (filters.expense_category) params.append('expense_category', filters.expense_category);
+        if (filters.start_date) params.append('start_date', filters.start_date);
+        if (filters.end_date) params.append('end_date', filters.end_date);
+        if (filters.order_by) params.append('order_by', filters.order_by);
+        
+        const queryString = params.toString();
+        const url = `${this.basePath}/expenses${queryString ? '?' + queryString : ''}`;
+        return await apiClient.get(url);
     }
 
     // Download egresos data as Excel

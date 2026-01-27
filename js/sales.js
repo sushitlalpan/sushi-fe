@@ -6,10 +6,20 @@ class SalesAPI {
         this.basePath = '/api/v1';
     }
 
-    // Fetch sales list
-    async getSalesList(skip = 0) {
-        const params = skip > 0 ? `?skip=${skip}` : '';
-        return await apiClient.get(`${this.basePath}/sales${params}`);
+    // Fetch sales list with filters
+    async getSalesList(skip = 0, filters = {}) {
+        const params = new URLSearchParams();
+        
+        if (skip > 0) params.append('skip', skip);
+        if (filters.worker_id) params.append('worker_id', filters.worker_id);
+        if (filters.branch_id) params.append('branch_id', filters.branch_id);
+        if (filters.start_date) params.append('start_date', filters.start_date);
+        if (filters.end_date) params.append('end_date', filters.end_date);
+        if (filters.order_by) params.append('order_by', filters.order_by);
+        
+        const queryString = params.toString();
+        const url = `${this.basePath}/sales${queryString ? '?' + queryString : ''}`;
+        return await apiClient.get(url);
     }
 
     // Download sales data as Excel
