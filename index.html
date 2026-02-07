@@ -39,33 +39,7 @@
         </div>
     </div>
 
-    <div class="dashboard-container" id="dashboardScreen">
-        <div class="dashboard-header">
-            <div class="header-left">
-                <div class="user-info">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                    <span id="welcomeMessage">Usuario: <strong></strong></span>
-                </div>
-            </div>
-            
-            <div class="header-right">
-                <div class="time-info">
-                    <span id="header-date"></span>
-                    <span id="header-time"></span>
-                </div>
-                <div class="connection-status">
-                    <div class="status-dot" id="connectionStatusIndicator"></div>
-                    <span id="connectionStatusText">Verificando...</span>
-                </div>
-                <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
-            </div>
-        </div>
-        <div class="dashboard-content">
-            <div class="main-content">
-                <iframe id="pageFrame" class="page-viewer" src="" title="Visor de Páginas"></iframe>
-            </div>
-        </div>
-    </div>
+
     <script src="js/api-client.js"></script>
     <script src="js/users.js"></script>
     <script src="js/admins.js"></script>
@@ -111,7 +85,11 @@
                 
                 // If we get here without an exception, login was successful
                 const displayUsername = result.username || username;
-                sessionStorage.setItem('loggedInUser', displayUsername);
+                const userType = isAdminMode ? 'administrador' : 'usuario';
+                
+                // Store user info in localStorage for persistence
+                localStorage.setItem('loggedInUser', displayUsername);
+                localStorage.setItem('userType', userType);
                 
                 // Store the access token if provided
                 if (result.access_token) {
@@ -124,9 +102,9 @@
                 
                 document.getElementById('loginScreen').classList.add('success-out');
                 
+                // Redirect to appropriate menu page
                 setTimeout(() => {
-                    showDashboard(displayUsername, isAdminMode ? 'administrador' : 'usuario');
-                    document.getElementById('loginScreen').classList.remove('success-out');
+                    window.location.href = userType === 'administrador' ? 'menu-admin.html' : 'menu-cliente.html';
                 }, 500);
                 
             } catch (error) {
@@ -141,34 +119,7 @@
             }
         }
 
-        function showDashboard(username, userType) {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('dashboardScreen').style.display = 'block';
-            document.querySelector('#welcomeMessage strong').textContent = username;
-            
-            const pageFrame = document.getElementById('pageFrame');
-            pageFrame.src = userType === 'administrador' ? 'menu-admin.html' : 'menu-cliente.html';
-        }
 
-        function logout() {
-            apiClient.clearAuth();
-            document.getElementById('dashboardScreen').style.display = 'none';
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('loginForm').reset();
-            hideMessage();
-            document.getElementById('pageFrame').src = '';
-        }
-
-        function updateClock() {
-            const dateElem = document.getElementById('header-date');
-            const timeElem = document.getElementById('header-time');
-            if (!dateElem || !timeElem) return;
-            const now = new Date();
-            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-            dateElem.textContent = now.toLocaleDateString('es-ES', dateOptions);
-            timeElem.textContent = now.toLocaleTimeString('es-ES', timeOptions);
-        }
 
         async function checkServerStatus() {
             // Indicadores de estado (para login y para el dashboard)
@@ -207,10 +158,18 @@
             document.getElementById('message').style.display = 'none';
         }
 
+        // Check if already logged in, redirect to menu
+        function checkExistingSession() {
+            const token = localStorage.getItem('accessToken');
+            const userType = localStorage.getItem('userType');
+            if (token && userType) {
+                window.location.href = userType === 'administrador' ? 'menu-admin.html' : 'menu-cliente.html';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            checkExistingSession();
             checkServerStatus();
-            updateClock();
-            setInterval(updateClock, 1000);
             setInterval(checkServerStatus, 1800000); // Verifica cada 30 minutos
         });
     </script>

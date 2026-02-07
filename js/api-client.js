@@ -33,17 +33,17 @@ class ApiClient {
         }
     }
 
-    // Get the auth token from sessionStorage
+    // Get the auth token from localStorage
     getAuthToken() {
-        return sessionStorage.getItem('accessToken');
+        return localStorage.getItem('accessToken');
     }
 
-    // Set the auth token in sessionStorage
+    // Set the auth token in localStorage
     setAuthToken(token) {
         if (token) {
-            sessionStorage.setItem('accessToken', token);
+            localStorage.setItem('accessToken', token);
         } else {
-            sessionStorage.removeItem('accessToken');
+            localStorage.removeItem('accessToken');
         }
     }
 
@@ -246,8 +246,8 @@ class ApiClient {
     // Clear all authentication data (for logout)
     clearAuth() {
         this.setAuthToken(null);
-        sessionStorage.removeItem('loggedInUser');
-        sessionStorage.removeItem('userType');
+        localStorage.removeItem('loggedInUser');
+        localStorage.removeItem('userType');
     }
 }
 
