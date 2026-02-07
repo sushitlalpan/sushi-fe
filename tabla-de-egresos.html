@@ -198,10 +198,6 @@
             }
 
             allTableRowsData = records.map((record, index) => {
-                const cantidad = parseNumber(record.quantity || 0);
-                const totalAmount = parseNumber(record.total_amount || 0);
-                const costoUDM = cantidad > 0 ? (totalAmount / cantidad) : 0;
-                
                 return {
                     id: record.id || index,
                     date: record.expense_date || '',
@@ -212,7 +208,7 @@
                     cantidad: record.quantity || '',
                     udm: record.unit_of_measure || '',
                     precio: record.total_amount || 0,
-                    costoUDM: costoUDM.toFixed(2),
+                    costoUDM: record.unit_cost || 0,
                     status: record.review_state || 'pending',
                     observation: record.review_observations || ''
                 };

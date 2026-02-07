@@ -249,7 +249,6 @@
         // Convert form data to required JSON structure
         const cantidad = parseFloat(document.getElementById('cantidad').value) || 0;
         const precio = parseFloat(document.getElementById('precio').value) || 0;
-        const totalAmount = cantidad * precio;
 
         const egresoData = {
           expense_date: document.getElementById('fecha').value,
@@ -258,7 +257,7 @@
           expense_category: document.getElementById('concepto').value || '',
           quantity: cantidad,
           unit_of_measure: document.getElementById('udm').value || '',
-          total_amount: totalAmount,
+          total_amount: precio,
           tax_amount: 0,
           receipt_number: '',
           payment_method: 'cash',
