@@ -257,6 +257,110 @@
         }
     }
     
+    function calculateAndDisplayTotals(data) {
+        const existingSummaryRows = tableBody.querySelectorAll('.summary-row');
+        existingSummaryRows.forEach(row => row.remove());
+
+        if (data.length === 0) return;
+
+        // Calculate totals for all amount fields
+        const totals = {
+            ventasTotales: data.reduce((sum, row) => sum + parseNumber(row.ventasTotales), 0),
+            tarjetaSegunITPV: data.reduce((sum, row) => sum + parseNumber(row.tarjetaSegunITPV), 0),
+            devolucionTarjeta: data.reduce((sum, row) => sum + parseNumber(row.devolucionTarjeta), 0),
+            tarjetaKiwi: data.reduce((sum, row) => sum + parseNumber(row.tarjetaKiwi), 0),
+            transfer: data.reduce((sum, row) => sum + parseNumber(row.transfer), 0),
+            totalTarjetaReal: data.reduce((sum, row) => sum + parseNumber(row.totalTarjetaReal), 0),
+            efectivo: data.reduce((sum, row) => sum + parseNumber(row.efectivo), 0),
+            devolucionEfectivo: data.reduce((sum, row) => sum + parseNumber(row.devolucionEfectivo), 0),
+            totalEfectivoReal: data.reduce((sum, row) => sum + parseNumber(row.totalEfectivoReal), 0),
+            diferenciaRevisar: data.reduce((sum, row) => sum + parseNumber(row.diferenciaRevisar), 0),
+            noPagos: data.reduce((sum, row) => sum + parseNumber(row.noPagos), 0),
+            ticketPromedio: data.reduce((sum, row) => sum + parseNumber(row.ticketPromedio), 0),
+            totalComisionKiwi: data.reduce((sum, row) => sum + parseNumber(row.totalComisionKiwi), 0),
+            totalSinComision: data.reduce((sum, row) => sum + parseNumber(row.totalSinComision), 0),
+            totalIngresos: data.reduce((sum, row) => sum + parseNumber(row.totalIngresos), 0)
+        };
+
+        // Calculate averages
+        const averages = {
+            ventasTotales: totals.ventasTotales / data.length,
+            tarjetaSegunITPV: totals.tarjetaSegunITPV / data.length,
+            devolucionTarjeta: totals.devolucionTarjeta / data.length,
+            tarjetaKiwi: totals.tarjetaKiwi / data.length,
+            transfer: totals.transfer / data.length,
+            totalTarjetaReal: totals.totalTarjetaReal / data.length,
+            efectivo: totals.efectivo / data.length,
+            devolucionEfectivo: totals.devolucionEfectivo / data.length,
+            totalEfectivoReal: totals.totalEfectivoReal / data.length,
+            diferenciaRevisar: totals.diferenciaRevisar / data.length,
+            noPagos: totals.noPagos / data.length,
+            ticketPromedio: totals.ticketPromedio / data.length,
+            totalComisionKiwi: totals.totalComisionKiwi / data.length,
+            totalSinComision: totals.totalSinComision / data.length,
+            totalIngresos: totals.totalIngresos / data.length
+        };
+
+        const appendCell = (row, content, isHidden = false) => {
+            const cell = row.insertCell();
+            cell.textContent = content;
+            if (isHidden) cell.classList.add('hide-column');
+            return cell;
+        };
+
+        // Create total row
+        const totalRow = tableBody.insertRow();
+        totalRow.className = 'summary-row total';
+        appendCell(totalRow, '', true); // ID column (hidden)
+        appendCell(totalRow, 'TOTALES').colSpan = 2;
+        appendCell(totalRow, formatCurrency(totals.ventasTotales));
+        appendCell(totalRow, formatCurrency(totals.tarjetaSegunITPV));
+        appendCell(totalRow, formatCurrency(totals.devolucionTarjeta));
+        appendCell(totalRow, formatCurrency(totals.tarjetaKiwi));
+        appendCell(totalRow, formatCurrency(totals.transfer));
+        appendCell(totalRow, formatCurrency(totals.totalTarjetaReal));
+        appendCell(totalRow, formatCurrency(totals.efectivo));
+        appendCell(totalRow, formatCurrency(totals.devolucionEfectivo));
+        appendCell(totalRow, formatCurrency(totals.totalEfectivoReal));
+        appendCell(totalRow, formatCurrency(totals.diferenciaRevisar)); // DIFERENCIA REVISAR
+        appendCell(totalRow, ''); // SUCURSAL
+        appendCell(totalRow, formatNumber(totals.noPagos, 0)); // NO. PAGOS
+        appendCell(totalRow, formatNumber(totals.ticketPromedio));
+        appendCell(totalRow, formatCurrency(totals.totalComisionKiwi));
+        appendCell(totalRow, formatCurrency(totals.totalSinComision));
+        appendCell(totalRow, formatCurrency(totals.totalIngresos));
+        appendCell(totalRow, ''); // NOTAS
+        appendCell(totalRow, ''); // ESTADO
+        appendCell(totalRow, ''); // OBSERVACIONES
+        appendCell(totalRow, ''); // ACCIONES
+
+        // Create average row
+        const averageRow = tableBody.insertRow();
+        averageRow.className = 'summary-row average';
+        appendCell(averageRow, '', true); // ID column (hidden)
+        appendCell(averageRow, 'PROMEDIOS').colSpan = 2;
+        appendCell(averageRow, formatCurrency(averages.ventasTotales));
+        appendCell(averageRow, formatCurrency(averages.tarjetaSegunITPV));
+        appendCell(averageRow, formatCurrency(averages.devolucionTarjeta));
+        appendCell(averageRow, formatCurrency(averages.tarjetaKiwi));
+        appendCell(averageRow, formatCurrency(averages.transfer));
+        appendCell(averageRow, formatCurrency(averages.totalTarjetaReal));
+        appendCell(averageRow, formatCurrency(averages.efectivo));
+        appendCell(averageRow, formatCurrency(averages.devolucionEfectivo));
+        appendCell(averageRow, formatCurrency(averages.totalEfectivoReal));
+        appendCell(averageRow, formatCurrency(averages.diferenciaRevisar)); // DIFERENCIA REVISAR
+        appendCell(averageRow, ''); // SUCURSAL
+        appendCell(averageRow, formatNumber(averages.noPagos, 0)); // NO. PAGOS
+        appendCell(averageRow, formatNumber(averages.ticketPromedio));
+        appendCell(averageRow, formatCurrency(averages.totalComisionKiwi));
+        appendCell(averageRow, formatCurrency(averages.totalSinComision));
+        appendCell(averageRow, formatCurrency(averages.totalIngresos));
+        appendCell(averageRow, ''); // NOTAS
+        appendCell(averageRow, ''); // ESTADO
+        appendCell(averageRow, ''); // OBSERVACIONES
+        appendCell(averageRow, ''); // ACCIONES
+    }
+
     function renderTable(dataToRender) {
         tableBody.innerHTML = '';
         currentFilteredAndRenderedRows = dataToRender;
@@ -382,6 +486,7 @@
             });
             deleteCell.appendChild(deleteButton);
         });
+        calculateAndDisplayTotals(dataToRender);
     }
 
     function populateSucursalFilter(branches) {
