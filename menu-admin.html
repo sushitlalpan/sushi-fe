@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link rel="stylesheet" href="css/menu-admin.css">
+  <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
 
 <body>
@@ -26,12 +27,12 @@
         <span>Usuarios</span>
       </button>
 
-      <button class="menu-card" onclick="location.href='admins.html'">
+      <button class="menu-card" id="adminsBtn" onclick="location.href='admins.html'">
         <i class="fas fa-user-shield"></i>
         <span>Admins</span>
       </button>
 
-      <button class="menu-card" onclick="location.href='sucursales.html'">
+      <button class="menu-card" id="sucursalesBtn" onclick="location.href='sucursales.html'">
         <i class="fas fa-store"></i>
         <span>Sucursales</span>
       </button>
@@ -90,8 +91,41 @@
 
     <div class="bottom-bar"></div>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
   <script src="js/api-client.js"></script>
   <script src="js/auth-guard.js"></script>
+  <script>
+    // JWT Decode Utility
+    function getUserFromToken() {
+        try {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                return { is_super_admin: false };
+            }
+            
+            const decoded = jwt_decode(token);
+            return decoded;
+        } catch (error) {
+            console.error('Error decoding JWT:', error);
+            return { is_super_admin: false };
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if user is superadmin
+        const user = getUserFromToken();
+        const isSuperAdmin = user.is_super_admin === true;
+        
+        // Hide admin-only menu items for non-superadmins
+        if (!isSuperAdmin) {
+            const adminsBtn = document.getElementById('adminsBtn');
+            const sucursalesBtn = document.getElementById('sucursalesBtn');
+            
+            if (adminsBtn) adminsBtn.style.display = 'none';
+            if (sucursalesBtn) sucursalesBtn.style.display = 'none';
+        }
+    });
+  </script>
 </body>
 
 </html>

@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/grafica-egresos.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
 <body>
     
@@ -59,7 +60,23 @@
 
         async function initializeDashboard() {
             await populateSucursalFilter();
-            await loadEgresosData();
+            
+            // Set default date range: current month
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            const startDateStr = firstDayOfMonth.toISOString().split('T')[0];
+            const endDateStr = today.toISOString().split('T')[0];
+            
+            document.getElementById('fechaInicio').value = startDateStr;
+            document.getElementById('fechaFin').value = endDateStr;
+            
+            // Load data with default current month filter
+            const defaultFilters = {
+                start_date: startDateStr,
+                end_date: endDateStr
+            };
+            await loadEgresosData(defaultFilters);
 
             document.querySelectorAll('.filters input, .filters select').forEach(el => {
                 el.addEventListener('change', () => applyFilters());
@@ -101,7 +118,8 @@
                     currentFilters = filters;
                 }
                 
-                const data = await egresosAPI.getEgresosList(0, currentFilters);
+                // Fetch all records for chart data by setting a high limit
+                const data = await egresosAPI.getEgresosList(0, currentFilters, 1000);
                 const expenses = data.expenses || [];
                 
                 originalData = expenses.map(item => ({

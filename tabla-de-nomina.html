@@ -6,6 +6,7 @@
 	<title>Panel de Administración - Nómina</title>
 	<link rel="icon" href="assets/favicon.ico" type="image/x-icon">
 	<link rel="stylesheet" href="css/tabla-de-nomina.css">
+	<script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
 <body>
     <main id="main-content">
@@ -33,10 +34,18 @@
             <button id="downloadExcelBtn">Descargar Excel Formateado</button>
         </div>
 
+        <!-- Bulk Actions (Superadmin Only) -->
+        <div id="bulkActionsContainer" class="bulk-actions-container hidden">
+            <button id="lockSelectedBtn" class="lock-btn" disabled>Bloquear (0)</button>
+            <button id="unlockSelectedBtn" class="unlock-btn" disabled>Desbloquear (0)</button>
+            <span id="selectedCountTag" class="selected-count">0 seleccionados</span>
+        </div>
+
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
+                        <th class="checkbox-column hidden"><input type="checkbox" id="selectAllCheckbox"></th>
                         <th>FECHA DE PAGO</th>
                         <th>COLABORADOR</th>
                         <th>DÍAS LABORADOS</th>
@@ -85,10 +94,55 @@
     
     async function goToPage(page) {
         if (page < 1 || page > totalPages || page === currentPage) return;
+        clearSelection(); // Clear selection when changing pages
         await loadData(page);
     }
     
+    // JWT Decode Utility
+    function getUserFromToken() {
+        try {
+            const token = localStorage.getItem('accessToken');
+            if (!token) return { is_super_admin: false };
+            
+            const decoded = jwt_decode(token);
+            return decoded;
+        } catch (error) {
+            console.error('Error decoding JWT:', error);
+            return { is_super_admin: false };
+        }
+    }
+
+    // Superadmin Selection State
+    let isSuperAdmin = false;
+    let selectedRecords = new Set();
+    let bulkActionsContainer, selectAllCheckbox, lockSelectedBtn, unlockSelectedBtn, selectedCountTag, checkboxColumn;
+
     document.addEventListener("DOMContentLoaded", async function() {
+        // Check if user is superadmin
+        const user = getUserFromToken();
+        isSuperAdmin = user.is_super_admin === true;
+        
+        // Get references to bulk action elements
+        bulkActionsContainer = document.getElementById('bulkActionsContainer');
+        selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        lockSelectedBtn = document.getElementById('lockSelectedBtn');
+        unlockSelectedBtn = document.getElementById('unlockSelectedBtn');
+        selectedCountTag = document.getElementById('selectedCountTag');
+        checkboxColumn = document.querySelector('.checkbox-column');
+        
+        // Show multi-select UI for superadmins
+        if (isSuperAdmin) {
+            bulkActionsContainer.classList.remove('hidden');
+            checkboxColumn.classList.remove('hidden');
+            
+            // Setup select-all functionality
+            selectAllCheckbox.addEventListener('change', handleSelectAll);
+            
+            // Setup lock/unlock buttons
+            lockSelectedBtn.addEventListener('click', handleLockSelected);
+            unlockSelectedBtn.addEventListener('click', handleUnlockSelected);
+        }
+        
         await loadAllBranches();
         await loadData();
     });
@@ -118,6 +172,7 @@
 	
 	// Track if branches are loaded
 	let branchesLoaded = false;
+	let allBranches = [];
 
 	function parseNumber(value) {
 		const num = parseFloat(value);
@@ -161,8 +216,8 @@
 		try {
 			const result = await branchesAPI.getBranches();
 			if (result.branches && result.branches.length > 0) {
-				const sortedBranches = result.branches.sort((a, b) => a.name.localeCompare(b.name));
-				populateSucursalFilter(sortedBranches);
+				allBranches = result.branches.sort((a, b) => a.name.localeCompare(b.name));
+				populateSucursalFilter(allBranches);
 				branchesLoaded = true;
 			}
 		} catch (error) {
@@ -203,7 +258,8 @@
                 nomina: record.payroll_type || '',
                 notas: record.notes || '',
                 status: record.review_state || 'pending',
-                observation: record.review_observations || ''
+                observation: record.review_observations || '',
+                isLocked: record.is_locked || false
             }));
 
 			renderTable(allTableRowsData);
@@ -230,6 +286,7 @@
 		
         const totalRow = tableBody.insertRow();
 		totalRow.className = 'summary-row total';
+		appendCell(totalRow, ''); // Checkbox column
 		appendCell(totalRow, 'TOTALES').colSpan = 4;
 		for (let i = 4; i < currentHeaderColCount; i++) {
 			const cell = totalRow.insertCell();
@@ -238,11 +295,199 @@
 		
         const averageRow = tableBody.insertRow();
 		averageRow.className = 'summary-row average';
+		appendCell(averageRow, ''); // Checkbox column
 		appendCell(averageRow, 'PROMEDIOS').colSpan = 4;
 		for (let i = 4; i < currentHeaderColCount; i++) {
 			const cell = averageRow.insertCell();
 			if (i === columnsToAggregate['cantidad']) cell.textContent = formatCurrency(averageCantidad);
 		}
+	}
+
+	// Selection Management Functions (Superadmin)
+	function clearSelection() {
+		selectedRecords.clear();
+		if (selectAllCheckbox) selectAllCheckbox.checked = false;
+		updateSelectionUI();
+	}
+
+	function updateSelectionUI() {
+		if (!isSuperAdmin) return;
+		
+		const count = selectedRecords.size;
+		
+		// Count locked vs unlocked selected records
+		let lockedCount = 0;
+		let unlockedCount = 0;
+		
+		selectedRecords.forEach(recordId => {
+			const record = allTableRowsData.find(r => r.id == recordId);
+			if (record) {
+				if (record.isLocked) {
+					lockedCount++;
+				} else {
+					unlockedCount++;
+				}
+			}
+		});
+		
+		// Update total count tag
+		selectedCountTag.textContent = `${count} seleccionado${count !== 1 ? 's' : ''}`;
+		
+		// Update lock button
+		lockSelectedBtn.textContent = `Bloquear (${unlockedCount})`;
+		lockSelectedBtn.disabled = unlockedCount === 0;
+		
+		// Update unlock button
+		unlockSelectedBtn.textContent = `Desbloquear (${lockedCount})`;
+		unlockSelectedBtn.disabled = lockedCount === 0;
+		
+		// Update select-all checkbox state
+		const visibleCheckboxes = tableBody.querySelectorAll('input[type="checkbox"][data-record-id]');
+		const visibleCheckedCount = Array.from(visibleCheckboxes).filter(cb => cb.checked).length;
+		selectAllCheckbox.checked = visibleCheckboxes.length > 0 && visibleCheckedCount === visibleCheckboxes.length;
+	}
+
+	function handleSelectAll(event) {
+		const isChecked = event.target.checked;
+		const checkboxes = tableBody.querySelectorAll('input[type="checkbox"][data-record-id]');
+		
+		checkboxes.forEach(checkbox => {
+			checkbox.checked = isChecked;
+			const recordId = checkbox.dataset.recordId;
+			if (isChecked) {
+				selectedRecords.add(recordId);
+			} else {
+				selectedRecords.delete(recordId);
+			}
+		});
+		
+		updateSelectionUI();
+	}
+
+	function getSelectedByLockStatus(locked) {
+		const filtered = [];
+		selectedRecords.forEach(recordId => {
+			const record = allTableRowsData.find(r => r.id == recordId);
+			if (record && record.isLocked === locked) {
+				filtered.push(recordId);
+			}
+		});
+		return filtered;
+	}
+
+	function handleLockSelected() {
+		const unlockedIds = getSelectedByLockStatus(false);
+		
+		if (unlockedIds.length === 0) return;
+		
+		console.log('🔒 Locking selected record IDs:', unlockedIds);
+		
+		const payload = {
+			record_ids: unlockedIds
+		};
+		
+		if (currentFilters.start_date || currentFilters.end_date) {
+			payload.date_range = {};
+			if (currentFilters.start_date) payload.date_range.start_date = currentFilters.start_date;
+			if (currentFilters.end_date) payload.date_range.end_date = currentFilters.end_date;
+		}
+		
+		if (currentFilters.branch_id) {
+			payload.branch_id = currentFilters.branch_id;
+		}
+		
+		console.log('📤 Bulk lock payload:', payload);
+		
+		if (!confirm(`¿Está seguro de bloquear ${unlockedIds.length} registro(s)?\n\nEstos registros no podrán ser editados por administradores regulares.`)) {
+			return;
+		}
+		
+		lockSelectedBtn.disabled = true;
+		lockSelectedBtn.textContent = 'Bloqueando...';
+		
+		nominaAPI.bulkLockPayroll(payload)
+			.then(response => {
+				console.log('✅ Bulk lock successful:', response);
+				alert(`${unlockedIds.length} registro(s) bloqueado(s) exitosamente.`);
+				clearSelection();
+				return loadData(currentPage, currentFilters);
+			})
+			.then(() => {
+				// Ensure UI is updated after data reload
+				updateSelectionUI();
+			})
+			.catch(error => {
+				console.error('❌ Error locking records:', error);
+				alert(`Error al bloquear registros: ${error.message || 'Error desconocido'}`);
+				updateSelectionUI();
+			})
+			.finally(() => {
+				lockSelectedBtn.disabled = false;
+			});
+	}
+
+	function handleUnlockSelected() {
+		const lockedIds = getSelectedByLockStatus(true);
+		
+		if (lockedIds.length === 0) return;
+		
+		console.log('🔓 Unlocking selected record IDs:', lockedIds);
+		
+		const payload = {
+			record_ids: lockedIds
+		};
+		
+		if (currentFilters.start_date || currentFilters.end_date) {
+			payload.date_range = {};
+			if (currentFilters.start_date) payload.date_range.start_date = currentFilters.start_date;
+			if (currentFilters.end_date) payload.date_range.end_date = currentFilters.end_date;
+		}
+		
+		if (currentFilters.branch_id) {
+			payload.branch_id = currentFilters.branch_id;
+		}
+		
+		console.log('📤 Bulk unlock payload:', payload);
+		
+		if (!confirm(`¿Está seguro de desbloquear ${lockedIds.length} registro(s)?`)) {
+			return;
+		}
+		
+		unlockSelectedBtn.disabled = true;
+		unlockSelectedBtn.textContent = 'Desbloqueando...';
+		
+		nominaAPI.bulkUnlockPayroll(payload)
+			.then(response => {
+				console.log('✅ Bulk unlock successful:', response);
+				alert(`${lockedIds.length} registro(s) desbloqueado(s) exitosamente.`);
+				clearSelection();
+				return loadData(currentPage, currentFilters);
+			})
+			.then(() => {
+				// Ensure UI is updated after data reload
+				updateSelectionUI();
+			})
+			.catch(error => {
+				console.error('❌ Error unlocking records:', error);
+				alert(`Error al desbloquear registros: ${error.message || 'Error desconocido'}`);
+				updateSelectionUI();
+			})
+			.finally(() => {
+				unlockSelectedBtn.disabled = false;
+			});
+	}
+
+	function handleRowCheckboxChange(event) {
+		const checkbox = event.target;
+		const recordId = checkbox.dataset.recordId;
+		
+		if (checkbox.checked) {
+			selectedRecords.add(recordId);
+		} else {
+			selectedRecords.delete(recordId);
+		}
+		
+		updateSelectionUI();
 	}
 
 	function renderTable(dataToRender) {
@@ -259,11 +504,65 @@
 			const newRow = tableBody.insertRow();
 			newRow.dataset.status = rowData.status;
 			newRow.dataset.rowId = rowData.id;
+			newRow.dataset.locked = rowData.isLocked;
+
+			// Add checkbox for superadmins (first column)
+			if (isSuperAdmin) {
+				const checkboxCell = newRow.insertCell();
+				checkboxCell.className = 'checkbox-cell';
+				const checkbox = document.createElement('input');
+				checkbox.type = 'checkbox';
+				checkbox.dataset.recordId = rowData.id;
+				checkbox.checked = selectedRecords.has(rowData.id.toString());
+				checkbox.addEventListener('change', handleRowCheckboxChange);
+				checkboxCell.appendChild(checkbox);
+			}
 
 			newRow.insertCell().textContent = formatDateForDisplay(rowData.date);
 			newRow.insertCell().textContent = rowData.colaborador;
 			newRow.insertCell().textContent = rowData.diasLaborados;
-			newRow.insertCell().textContent = rowData.sucursal;
+			
+			// Branch cell - dropdown for superadmins, plain text for others
+			if (isSuperAdmin) {
+				const branchCell = newRow.insertCell();
+				const branchSelect = document.createElement('select');
+				branchSelect.className = 'branch-select';
+				allBranches.forEach(branch => {
+					const option = document.createElement('option');
+					option.value = branch.id;
+					option.textContent = branch.name;
+					branchSelect.appendChild(option);
+				});
+				branchSelect.value = rowData.branchId;
+				branchCell.appendChild(branchSelect);
+				
+				// Add change event handler
+				branchSelect.addEventListener('change', async function() {
+					const selectedBranchId = this.value;
+					const selectedBranch = allBranches.find(b => b.id == selectedBranchId);
+					const targetRow = allTableRowsData.find(r => r.id == newRow.dataset.rowId);
+					
+					if (targetRow && selectedBranch) {
+						// Update local data immediately (optimistic update)
+						targetRow.branchId = selectedBranchId;
+						targetRow.sucursal = selectedBranch.name;
+						
+						// Call API to update branch
+						if (targetRow.id) {
+							try {
+								await nominaAPI.updatePayrollBranch(targetRow.id, selectedBranchId);
+								console.log('Payroll branch updated successfully');
+							} catch (error) {
+								console.error('Error updating payroll branch:', error);
+							}
+						}
+					}
+					applyFilters();
+				});
+			} else {
+				newRow.insertCell().textContent = rowData.sucursal;
+			}
+			
 			newRow.insertCell().textContent = formatCurrency(parseNumber(rowData.cantidad));
 			newRow.insertCell().textContent = rowData.nomina;
 			newRow.insertCell().textContent = rowData.notas;
@@ -385,6 +684,7 @@
 			filters.branch_id = sucursalFilterSelect.value;
 		}
 		
+		clearSelection(); // Clear selection when applying filters
 		// Reset to page 1 when applying filters
 		await loadData(1, filters);
 	}
@@ -393,27 +693,14 @@
 		startDateInput.value = '';
 		endDateInput.value = '';
 		sucursalFilterSelect.value = '';
+		clearSelection(); // Clear selection when clearing filters
 		// Reset filters and reload from page 1
 		await loadData(1, {});
 	}
 
     async function downloadExcel() {
-        if (currentFilteredAndRenderedRows.length === 0) {
-            alert("No hay datos para descargar.");
-            return;
-        }
         try {
-            const blob = await nominaAPI.downloadNomina(currentFilteredAndRenderedRows);
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = 'reporte_nomina_formateado.xlsx';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-
+            await nominaAPI.exportPayrollExcel(currentFilters);
         } catch (error) {
             console.error('Error en la descarga:', error);
             alert(`No se pudo descargar el archivo: ${error.message}`);
@@ -427,3 +714,4 @@
 	</script>
 </body>
 </html>
+

@@ -248,6 +248,7 @@ class ApiClient {
         this.setAuthToken(null);
         localStorage.removeItem('loggedInUser');
         localStorage.removeItem('userType');
+        localStorage.removeItem('isSuperadmin');
     }
 }
 

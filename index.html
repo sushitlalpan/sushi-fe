@@ -6,6 +6,7 @@
     <title>Sushi Tlalpan - Sistema Integrado</title>
     <link rel="stylesheet" href="css/index.css">
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
 <body>
     <div class="login-container" id="loginScreen">
@@ -94,6 +95,15 @@
                 // Store the access token if provided
                 if (result.access_token) {
                     apiClient.setAuthToken(result.access_token);
+                    
+                    // Decode JWT to extract is_super_admin
+                    try {
+                        const decoded = jwt_decode(result.access_token);
+                        localStorage.setItem('isSuperadmin', decoded.is_super_admin ? 'true' : 'false');
+                    } catch (error) {
+                        console.error('Error decoding JWT:', error);
+                        localStorage.setItem('isSuperadmin', 'false');
+                    }
                 }
                 
                 if (result.message) {

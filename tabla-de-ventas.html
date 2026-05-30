@@ -6,6 +6,7 @@
     <title>Panel de Administración - Cierre de Caja</title>
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="css/tabla-de-ventas.css">
+    <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
 <body>
     <main id="main-content">
@@ -34,10 +35,18 @@
             <button id="downloadExcelBtn">Descargar Excel Formateado</button>
         </div>
 
+        <!-- Bulk Actions (Superadmin Only) -->
+        <div id="bulkActionsContainer" class="bulk-actions-container hidden">
+            <button id="lockSelectedBtn" class="lock-btn" disabled>Bloquear (0)</button>
+            <button id="unlockSelectedBtn" class="unlock-btn" disabled>Desbloquear (0)</button>
+            <span id="selectedCountTag" class="selected-count">0 seleccionados</span>
+        </div>
+
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
+                        <th class="checkbox-column hidden"><input type="checkbox" id="selectAllCheckbox"></th>
                         <th class="hide-column">ID</th>
                         <th>FECHA DE CORTE</th>
                         <th>NO. CIERRE</th>
@@ -99,10 +108,82 @@
     
     async function goToPage(page) {
         if (page < 1 || page > totalPages || page === currentPage) return;
+        clearSelection(); // Clear selection when changing pages
         await loadData(page);
     }
     
+    // JWT Decode Utility
+    function getUserFromToken() {
+        try {
+            const token = localStorage.getItem('accessToken');
+            console.log('🔑 Token exists:', !!token);
+            console.log('🔑 Token (first 50 chars):', token ? token.substring(0, 50) + '...' : 'null');
+            
+            if (!token) {
+                console.warn('❌ No access token found in localStorage');
+                return { is_super_admin: false };
+            }
+            
+            const decoded = jwt_decode(token);
+            console.log('🔓 Decoded JWT payload:', decoded);
+            console.log('🔓 JWT keys:', Object.keys(decoded));
+            console.log('🔓 is_super_admin value:', decoded.is_super_admin);
+            
+            return decoded;
+        } catch (error) {
+            console.error('❌ Error decoding JWT:', error);
+            return { is_super_admin: false };
+        }
+    }
+
+    // Superadmin Selection State
+    let isSuperAdmin = false;
+    let selectedRecords = new Set();
+    let bulkActionsContainer, selectAllCheckbox, lockSelectedBtn, unlockSelectedBtn, selectedCountTag, checkboxColumn;
+
     document.addEventListener("DOMContentLoaded", async function() {
+        console.log('🚀 Page loaded - checking superadmin status...');
+        
+        // Check if user is superadmin
+        const user = getUserFromToken();
+        isSuperAdmin = user.is_super_admin === true;
+        
+        console.log('👤 User object:', user);
+        console.log('✨ isSuperAdmin result:', isSuperAdmin);
+        
+        // Get references to bulk action elements
+        bulkActionsContainer = document.getElementById('bulkActionsContainer');
+        selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        lockSelectedBtn = document.getElementById('lockSelectedBtn');
+        unlockSelectedBtn = document.getElementById('unlockSelectedBtn');
+        selectedCountTag = document.getElementById('selectedCountTag');
+        checkboxColumn = document.querySelector('.checkbox-column');
+        
+        console.log('🎯 UI Elements found:', {
+            bulkActionsContainer: !!bulkActionsContainer,
+            selectAllCheckbox: !!selectAllCheckbox,
+            lockSelectedBtn: !!lockSelectedBtn,
+            unlockSelectedBtn: !!unlockSelectedBtn,
+            selectedCountTag: !!selectedCountTag,
+            checkboxColumn: !!checkboxColumn
+        });
+        
+        // Show multi-select UI for superadmins
+        if (isSuperAdmin) {
+            console.log('✅ Superadmin detected - showing UI controls');
+            bulkActionsContainer.classList.remove('hidden');
+            checkboxColumn.classList.remove('hidden');
+            
+            // Setup select-all functionality
+            selectAllCheckbox.addEventListener('change', handleSelectAll);
+            
+            // Setup lock/unlock buttons
+            lockSelectedBtn.addEventListener('click', handleLockSelected);
+            unlockSelectedBtn.addEventListener('click', handleUnlockSelected);
+        } else {
+            console.log('⚠️ Not a superadmin - UI controls will remain hidden');
+        }
+        
         await loadAllBranches();
         await loadData();
     });
@@ -131,6 +212,7 @@
     
     // Track if branches are loaded
     let branchesLoaded = false;
+    let allBranches = [];
     
     const columnsToAggregate = {
         'ventasTotales': 3, 'tarjetaSegunITPV': 4, 'devolucionTarjeta': 5,
@@ -190,8 +272,8 @@
         try {
             const result = await branchesAPI.getBranches();
             if (result.branches && result.branches.length > 0) {
-                const sortedBranches = result.branches.sort((a, b) => a.name.localeCompare(b.name));
-                populateSucursalFilter(sortedBranches);
+                allBranches = result.branches.sort((a, b) => a.name.localeCompare(b.name));
+                populateSucursalFilter(allBranches);
                 branchesLoaded = true;
             }
         } catch (error) {
@@ -222,6 +304,10 @@
             }
 
             allTableRowsData = records.map((record, i) => {
+                // Find branch ID by name
+                const branch = allBranches.find(b => b.name === record.branch_name);
+                const branchId = branch ? branch.id : '';
+                
                 const rowDataObject = {
                     id: record.id || `row-${i}`,
                     fechaCorte: record.closure_date || '',
@@ -237,6 +323,7 @@
                     totalEfectivoReal: record.cash_total || 0,
                     diferenciaRevisar: record.discrepancy || '',
                     sucursal: record.branch_name || '',
+                    branchId: branchId,
                     noPagos: record.payments_nbr || 0,
                     ticketPromedio: record.avg_sale || 0,
                     totalComisionKiwi: record.kiwi_fee_total || 0,
@@ -244,7 +331,8 @@
                     totalIngresos: record.revenue_total || 0,
                     notas: record.notes || '',
                     status: record.review_state || 'pending',
-                    observation: record.review_observations || ''
+                    observation: record.review_observations || '',
+                    isLocked: record.is_locked || false
                 };
                 return rowDataObject;
             });
@@ -311,6 +399,7 @@
         // Create total row
         const totalRow = tableBody.insertRow();
         totalRow.className = 'summary-row total';
+        appendCell(totalRow, ''); // Checkbox column
         appendCell(totalRow, '', true); // ID column (hidden)
         appendCell(totalRow, 'TOTALES').colSpan = 2;
         appendCell(totalRow, formatCurrency(totals.ventasTotales));
@@ -337,6 +426,7 @@
         // Create average row
         const averageRow = tableBody.insertRow();
         averageRow.className = 'summary-row average';
+        appendCell(averageRow, ''); // Checkbox column
         appendCell(averageRow, '', true); // ID column (hidden)
         appendCell(averageRow, 'PROMEDIOS').colSpan = 2;
         appendCell(averageRow, formatCurrency(averages.ventasTotales));
@@ -361,6 +451,193 @@
         appendCell(averageRow, ''); // ACCIONES
     }
 
+    // Selection Management Functions (Superadmin)
+    function clearSelection() {
+        selectedRecords.clear();
+        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+        updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+        if (!isSuperAdmin) return;
+        
+        const count = selectedRecords.size;
+        
+        // Count locked vs unlocked selected records
+        let lockedCount = 0;
+        let unlockedCount = 0;
+        
+        selectedRecords.forEach(recordId => {
+            const record = allTableRowsData.find(r => r.id == recordId);
+            if (record) {
+                if (record.isLocked) {
+                    lockedCount++;
+                } else {
+                    unlockedCount++;
+                }
+            }
+        });
+        
+        // Update total count tag
+        selectedCountTag.textContent = `${count} seleccionado${count !== 1 ? 's' : ''}`;
+        
+        // Update lock button
+        lockSelectedBtn.textContent = `Bloquear (${unlockedCount})`;
+        lockSelectedBtn.disabled = unlockedCount === 0;
+        
+        // Update unlock button
+        unlockSelectedBtn.textContent = `Desbloquear (${lockedCount})`;
+        unlockSelectedBtn.disabled = lockedCount === 0;
+        
+        // Update select-all checkbox state
+        const visibleCheckboxes = tableBody.querySelectorAll('input[type="checkbox"][data-record-id]');
+        const visibleCheckedCount = Array.from(visibleCheckboxes).filter(cb => cb.checked).length;
+        selectAllCheckbox.checked = visibleCheckboxes.length > 0 && visibleCheckedCount === visibleCheckboxes.length;
+    }
+
+    function handleSelectAll(event) {
+        const isChecked = event.target.checked;
+        const checkboxes = tableBody.querySelectorAll('input[type="checkbox"][data-record-id]');
+        
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+            const recordId = checkbox.dataset.recordId;
+            if (isChecked) {
+                selectedRecords.add(recordId);
+            } else {
+                selectedRecords.delete(recordId);
+            }
+        });
+        
+        updateSelectionUI();
+    }
+
+    function getSelectedByLockStatus(locked) {
+        const filtered = [];
+        selectedRecords.forEach(recordId => {
+            const record = allTableRowsData.find(r => r.id == recordId);
+            if (record && record.isLocked === locked) {
+                filtered.push(recordId);
+            }
+        });
+        return filtered;
+    }
+
+    function handleLockSelected() {
+        const unlockedIds = getSelectedByLockStatus(false);
+        
+        if (unlockedIds.length === 0) return;
+        
+        console.log('🔒 Locking selected record IDs:', unlockedIds);
+        
+        const payload = {
+            record_ids: unlockedIds
+        };
+        
+        if (currentFilters.start_date || currentFilters.end_date) {
+            payload.date_range = {};
+            if (currentFilters.start_date) payload.date_range.start_date = currentFilters.start_date;
+            if (currentFilters.end_date) payload.date_range.end_date = currentFilters.end_date;
+        }
+        
+        if (currentFilters.branch_id) {
+            payload.branch_id = currentFilters.branch_id;
+        }
+        
+        console.log('📤 Bulk lock payload:', payload);
+        
+        if (!confirm(`¿Está seguro de bloquear ${unlockedIds.length} registro(s)?\n\nEstos registros no podrán ser editados por administradores regulares.`)) {
+            return;
+        }
+        
+        lockSelectedBtn.disabled = true;
+        lockSelectedBtn.textContent = 'Bloqueando...';
+        
+        salesAPI.bulkLockSales(payload)
+            .then(response => {
+                console.log('✅ Bulk lock successful:', response);
+                alert(`${unlockedIds.length} registro(s) bloqueado(s) exitosamente.`);
+                clearSelection();
+                return loadData(currentPage, currentFilters);
+            })
+            .then(() => {
+                // Ensure UI is updated after data reload
+                updateSelectionUI();
+            })
+            .catch(error => {
+                console.error('❌ Error locking records:', error);
+                alert(`Error al bloquear registros: ${error.message || 'Error desconocido'}`);
+                updateSelectionUI();
+            })
+            .finally(() => {
+                lockSelectedBtn.disabled = false;
+            });
+    }
+
+    function handleUnlockSelected() {
+        const lockedIds = getSelectedByLockStatus(true);
+        
+        if (lockedIds.length === 0) return;
+        
+        console.log('🔓 Unlocking selected record IDs:', lockedIds);
+        
+        const payload = {
+            record_ids: lockedIds
+        };
+        
+        if (currentFilters.start_date || currentFilters.end_date) {
+            payload.date_range = {};
+            if (currentFilters.start_date) payload.date_range.start_date = currentFilters.start_date;
+            if (currentFilters.end_date) payload.date_range.end_date = currentFilters.end_date;
+        }
+        
+        if (currentFilters.branch_id) {
+            payload.branch_id = currentFilters.branch_id;
+        }
+        
+        console.log('📤 Bulk unlock payload:', payload);
+        
+        if (!confirm(`¿Está seguro de desbloquear ${lockedIds.length} registro(s)?`)) {
+            return;
+        }
+        
+        unlockSelectedBtn.disabled = true;
+        unlockSelectedBtn.textContent = 'Desbloqueando...';
+        
+        salesAPI.bulkUnlockSales(payload)
+            .then(response => {
+                console.log('✅ Bulk unlock successful:', response);
+                alert(`${lockedIds.length} registro(s) desbloqueado(s) exitosamente.`);
+                clearSelection();
+                return loadData(currentPage, currentFilters);
+            })
+            .then(() => {
+                // Ensure UI is updated after data reload
+                updateSelectionUI();
+            })
+            .catch(error => {
+                console.error('❌ Error unlocking records:', error);
+                alert(`Error al desbloquear registros: ${error.message || 'Error desconocido'}`);
+                updateSelectionUI();
+            })
+            .finally(() => {
+                unlockSelectedBtn.disabled = false;
+            });
+    }
+
+    function handleRowCheckboxChange(event) {
+        const checkbox = event.target;
+        const recordId = checkbox.dataset.recordId;
+        
+        if (checkbox.checked) {
+            selectedRecords.add(recordId);
+        } else {
+            selectedRecords.delete(recordId);
+        }
+        
+        updateSelectionUI();
+    }
+
     function renderTable(dataToRender) {
         tableBody.innerHTML = '';
         currentFilteredAndRenderedRows = dataToRender;
@@ -375,6 +652,19 @@
             const newRow = tableBody.insertRow();
             newRow.dataset.status = rowData.status;
             newRow.dataset.rowId = rowData.id;
+            newRow.dataset.locked = rowData.isLocked;
+            
+            // Add checkbox for superadmins (first column)
+            if (isSuperAdmin) {
+                const checkboxCell = newRow.insertCell();
+                checkboxCell.className = 'checkbox-cell';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.dataset.recordId = rowData.id;
+                checkbox.checked = selectedRecords.has(rowData.id.toString());
+                checkbox.addEventListener('change', handleRowCheckboxChange);
+                checkboxCell.appendChild(checkbox);
+            }
             
             const appendCell = (content, isHidden = false, isCurrency = false) => {
                 const cell = newRow.insertCell();
@@ -395,7 +685,48 @@
             appendCell(rowData.devolucionEfectivo, false, true);
             appendCell(rowData.totalEfectivoReal, false, true);
             appendCell(rowData.diferenciaRevisar);
-            appendCell(rowData.sucursal);
+            
+            // Branch cell - dropdown for superadmins, plain text for others
+            if (isSuperAdmin) {
+                const branchCell = newRow.insertCell();
+                const branchSelect = document.createElement('select');
+                branchSelect.className = 'branch-select';
+                allBranches.forEach(branch => {
+                    const option = document.createElement('option');
+                    option.value = branch.id;
+                    option.textContent = branch.name;
+                    branchSelect.appendChild(option);
+                });
+                branchSelect.value = rowData.branchId;
+                branchCell.appendChild(branchSelect);
+                
+                // Add change event handler
+                branchSelect.addEventListener('change', async function() {
+                    const selectedBranchId = this.value;
+                    const selectedBranch = allBranches.find(b => b.id == selectedBranchId);
+                    const targetRow = allTableRowsData.find(r => r.id === newRow.dataset.rowId);
+                    
+                    if (targetRow && selectedBranch) {
+                        // Update local data immediately (optimistic update)
+                        targetRow.branchId = selectedBranchId;
+                        targetRow.sucursal = selectedBranch.name;
+                        
+                        // Call API to update branch
+                        if (targetRow.id) {
+                            try {
+                                await salesAPI.updateSalesBranch(targetRow.id, selectedBranchId);
+                                console.log('Sales branch updated successfully');
+                            } catch (error) {
+                                console.error('Error updating sales branch:', error);
+                            }
+                        }
+                    }
+                    applyFilters();
+                });
+            } else {
+                appendCell(rowData.sucursal);
+            }
+            
             appendCell(rowData.noPagos);
             appendCell(formatNumber(parseNumber(rowData.ticketPromedio)));
             appendCell(rowData.totalComisionKiwi, false, true);
@@ -520,6 +851,7 @@
             filters.branch_id = sucursalFilterSelect.value;
         }
         
+        clearSelection(); // Clear selection when applying filters
         // Reset to page 1 when applying filters
         await loadData(1, filters);
     }
@@ -528,27 +860,14 @@
         startDateInput.value = '';
         endDateInput.value = '';
         sucursalFilterSelect.value = '';
+        clearSelection(); // Clear selection when clearing filters
         // Reset filters and reload from page 1
         await loadData(1, {});
     }
 
     async function downloadExcel() {
-        if (currentFilteredAndRenderedRows.length === 0) {
-            alert("No hay datos para descargar.");
-            return;
-        }
         try {
-            const blob = await salesAPI.downloadSales(currentFilteredAndRenderedRows);
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = 'reporte_ventas_formateado.xlsx';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-
+            await salesAPI.exportSalesExcel(currentFilters);
         } catch (error) {
             console.error('Error en la descarga:', error);
             alert(`No se pudo descargar el archivo: ${error.message}`);
@@ -562,3 +881,5 @@
     </script>
 </body>
 </html>
+
+
