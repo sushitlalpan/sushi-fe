@@ -7,10 +7,11 @@ class SalesAPI {
     }
 
     // Fetch sales list with filters
-    async getSalesList(skip = 0, filters = {}) {
+    async getSalesList(skip = 0, filters = {}, limit = null) {
         const params = new URLSearchParams();
         
         if (skip > 0) params.append('skip', skip);
+        if (limit !== null) params.append('limit', limit);
         if (filters.worker_id) params.append('worker_id', filters.worker_id);
         if (filters.branch_id) params.append('branch_id', filters.branch_id);
         if (filters.start_date) params.append('start_date', filters.start_date);
@@ -18,7 +19,7 @@ class SalesAPI {
         if (filters.order_by) params.append('order_by', filters.order_by);
         
         const queryString = params.toString();
-        const url = `${this.basePath}/sales${queryString ? '?' + queryString : ''}`;
+        const url = `${this.basePath}/sales?${queryString}`;
         return await apiClient.get(url);
     }
 
@@ -59,6 +60,53 @@ class SalesAPI {
     // Delete sales record
     async deleteSales(saleId) {
         return await apiClient.delete(`${this.basePath}/sales/${saleId}`);
+    }
+
+    // Bulk lock sales records (superadmin only)
+    async bulkLockSales(payload) {
+        return await apiClient.post(`${this.basePath}/sales/bulk-lock`, payload);
+    }
+
+    // Bulk unlock sales records (superadmin only)
+    async bulkUnlockSales(payload) {
+        return await apiClient.post(`${this.basePath}/sales/bulk-unlock`, payload);
+    }
+
+    // Update sales branch (superadmin only)
+    async updateSalesBranch(salesId, branchId) {
+        return await apiClient.patch(`${this.basePath}/sales/${salesId}/branch`, { branch_id: branchId });
+    }
+
+    // Export sales to Excel
+    async exportSalesExcel(filters = {}) {
+        try {
+            const params = new URLSearchParams();
+            
+            if (filters.worker_id) params.append('worker_id', filters.worker_id);
+            if (filters.branch_id) params.append('branch_id', filters.branch_id);
+            if (filters.start_date) params.append('start_date', filters.start_date);
+            if (filters.end_date) params.append('end_date', filters.end_date);
+            if (filters.order_by) params.append('order_by', filters.order_by);
+            
+            const queryString = params.toString();
+            const url = `${this.basePath}/sales/export/excel${queryString ? '?' + queryString : ''}`;
+            const blob = await apiClient.downloadFile(url, null);
+            
+            // Create download link
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `ventas_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup
+            window.URL.revokeObjectURL(downloadUrl);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Error exporting sales to Excel:', error);
+            throw error;
+        }
     }
 }
 

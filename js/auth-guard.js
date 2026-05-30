@@ -19,6 +19,25 @@
         return localStorage.getItem('userType') || 'usuario';
     }
 
+    // Check if user is a superadmin
+    function isSuperadmin() {
+        // Try to decode JWT token if jwt_decode is available
+        if (typeof jwt_decode !== 'undefined') {
+            try {
+                const token = localStorage.getItem('accessToken');
+                if (token) {
+                    const decoded = jwt_decode(token);
+                    return decoded.is_super_admin === true;
+                }
+            } catch (error) {
+                console.error('Error decoding JWT in auth-guard:', error);
+            }
+        }
+        
+        // Fallback to localStorage
+        return localStorage.getItem('isSuperadmin') === 'true';
+    }
+
     // Redirect to login if not authenticated
     function requireAuth() {
         if (!isAuthenticated()) {
@@ -85,6 +104,8 @@
     function injectHeader() {
         const username = getLoggedInUser();
         const userType = getUserType();
+        const superadmin = isSuperadmin();
+        const superadminBadge = superadmin ? ' <span class="superadmin-badge">(superuser)</span>' : '';
         
         const headerHTML = `
         <div class="app-header" id="appHeader">
@@ -94,7 +115,7 @@
                 </button>
                 <div class="user-info">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                    <span>Usuario: <strong>${username}</strong></span>
+                    <span>Usuario: <strong>${username}</strong>${superadminBadge}</span>
                 </div>
             </div>
             
@@ -162,6 +183,12 @@
                     align-items: center;
                     gap: 8px;
                     font-size: 14px;
+                }
+                .app-header .superadmin-badge {
+                    color: #4caf50;
+                    font-size: 12px;
+                    font-weight: 600;
+                    margin-left: 4px;
                 }
                 .app-header .time-info {
                     display: flex;
@@ -253,6 +280,7 @@
         isAuthenticated,
         getLoggedInUser,
         getUserType,
+        isSuperadmin,
         requireAuth,
         logout,
         goToMenu,
