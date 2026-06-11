@@ -286,7 +286,7 @@
 		
         const totalRow = tableBody.insertRow();
 		totalRow.className = 'summary-row total';
-		appendCell(totalRow, ''); // Checkbox column
+		if (isSuperAdmin) appendCell(totalRow, ''); // Checkbox column (only for superadmins)
 		appendCell(totalRow, 'TOTALES').colSpan = 4;
 		for (let i = 4; i < currentHeaderColCount; i++) {
 			const cell = totalRow.insertCell();
@@ -295,7 +295,7 @@
 		
         const averageRow = tableBody.insertRow();
 		averageRow.className = 'summary-row average';
-		appendCell(averageRow, ''); // Checkbox column
+		if (isSuperAdmin) appendCell(averageRow, ''); // Checkbox column (only for superadmins)
 		appendCell(averageRow, 'PROMEDIOS').colSpan = 4;
 		for (let i = 4; i < currentHeaderColCount; i++) {
 			const cell = averageRow.insertCell();
