@@ -4,6 +4,15 @@ const CHART_COLORS = [
     '#ce193c', '#ddd513', '#2685a2', '#7b3b87', '#1d5da5', '#a86d13', '#208e5d', '#bf3e18',
     '#f18ab9', '#f6d68e', '#7be0dd', '#b08bcc'
 ];
+
+// Two-decimal formatting for the datalabels plugin. Call right after Chart.register(ChartDataLabels).
+function applyDataLabelFormat() {
+    Chart.defaults.set('plugins.datalabels', {
+        formatter: value => typeof value === 'number'
+            ? value.toLocaleString('es-MX', { maximumFractionDigits: 2 })
+            : value
+    });
+}
 
 // Limits numbers shown on chart axes to two decimal places. Must load after Chart.js.
 (function () {

@@ -50,6 +50,7 @@
 
         // CORRECCIÓN: Registrar los plugins globalmente una sola vez al inicio.
         Chart.register(ChartDataLabels);
+        applyDataLabelFormat();
 
         document.addEventListener("DOMContentLoaded", function() {
             initializeDashboard();

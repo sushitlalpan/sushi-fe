@@ -52,6 +52,7 @@
 
         // Registrar plugins de Chart.js una sola vez
         Chart.register(ChartDataLabels);
+        applyDataLabelFormat();
 
         document.addEventListener("DOMContentLoaded", function () {
             initializeDashboard();

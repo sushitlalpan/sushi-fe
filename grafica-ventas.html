@@ -8,6 +8,7 @@
 
 	<link rel="stylesheet" href="css/grafica-ventas.css">
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="js/chart-format.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
@@ -35,6 +36,8 @@
 	<script src="js/branches.js"></script>
 	<script src="js/sales.js"></script>
 	<script>
+		Chart.register(ChartDataLabels);
+		applyDataLabelFormat();
 		let originalData = [];
 		let currentFilters = {};
 
