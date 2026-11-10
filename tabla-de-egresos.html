@@ -6,6 +6,7 @@
     <title>Panel de Administración - Egresos</title>
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="css/tabla-de-egresos.css">
+<link rel="stylesheet" href="css/row-info.css">
     <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
 <body>
@@ -56,7 +57,8 @@
                         <th>PRECIO</th>
                         <th>COSTO X UDM</th>
                         <th>ESTADO</th>
-                        <th>ACCIONES</th>
+                        <th class="actions-header">ACCIONES</th>
+<th>INFO</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -82,6 +84,9 @@
     <script src="js/auth-guard.js"></script>
     <script src="js/egresos.js"></script>
     <script src="js/branches.js"></script>
+    <script src="js/future-date.js"></script>
+<script src="js/row-edit.js"></script>
+<script src="js/row-info.js"></script>
     <script>
     // Pagination functions
     function updatePaginationUI() {
@@ -96,6 +101,7 @@
     
     async function goToPage(page) {
         if (page < 1 || page > totalPages || page === currentPage) return;
+        if (!RowEdit.guard()) return;
         clearSelection(); // Clear selection when changing pages
         await loadData(page);
     }
@@ -160,7 +166,7 @@
 
     let allTableRowsData = [];
     let currentFilteredAndRenderedRows = [];
-    const currentHeaderColCount = 12; // Fixed: always includes observation column
+    const currentHeaderColCount = 13; // Fixed: always includes observation column
     
     // Pagination variables
     let currentPage = 1;
@@ -175,6 +181,17 @@
     // Track if branches are loaded
     let branchesLoaded = false;
     let allBranches = [];
+
+    // col = column index after the checkbox column; computed columns are not editable
+    const EXPENSE_EDIT_FIELDS = [
+        { col: 0, key: 'date', api: 'expense_date', type: 'date' },
+        { col: 1, key: 'compra', api: 'expense_description', type: 'text' },
+        { col: 2, key: 'lugarCompra', api: 'vendor_payee', type: 'text' },
+        { col: 3, key: 'concepto', api: 'expense_category', type: 'text' },
+        { col: 5, key: 'cantidad', api: 'quantity', type: 'number' },
+        { col: 6, key: 'udm', api: 'unit_of_measure', type: 'text' },
+        { col: 7, key: 'precio', api: 'total_amount', type: 'number' }
+    ];
 
     function parseNumber(value) {
         const num = parseFloat(value);
@@ -198,7 +215,7 @@
             newTh.textContent = 'OBSERVACIONES';
             newTh.classList.add('observation-header');
             // Insert before ACCIONES column
-            const accionesHeader = tableHeaderRow.querySelector('th:last-child');
+            const accionesHeader = tableHeaderRow.querySelector('.actions-header');
             tableHeaderRow.insertBefore(newTh, accionesHeader);
         }
     }
@@ -273,7 +290,11 @@
                     costoUDM: record.unit_cost || 0,
                     status: record.review_state || 'pending',
                     observation: record.review_observations || '',
-                    isLocked: record.is_locked || false
+                    isLocked: record.is_locked || false,
+ createUser: record.create_user || '',
+ createdAt: record.created_at || '',
+ lastUpdatedUser: record.last_updated_user || '',
+ lastUpdatedAt: record.last_updated_at || ''
                 };
             });
 
@@ -507,6 +528,7 @@
     }
 
     function renderTable(dataToRender) {
+        RowEdit.reset();
         tableBody.innerHTML = '';
         currentFilteredAndRenderedRows = dataToRender;
 
@@ -556,6 +578,7 @@
                 
                 // Add change event handler
                 branchSelect.addEventListener('change', async function() {
+                    if (RowEdit.isEditing()) return; // Branch is saved with the row edit
                     const selectedBranchId = this.value;
                     const selectedBranch = allBranches.find(b => b.id == selectedBranchId);
                     const targetRow = allTableRowsData.find(r => r.id == newRow.dataset.rowId);
@@ -606,24 +629,15 @@
                 const targetRow = allTableRowsData.find(r => r.id == newRow.dataset.rowId);
                 if (targetRow) targetRow.observation = this.value;
             });
-            observationInput.addEventListener('keydown', async function(e) {
-                if (e.key === 'Enter') {
-                    const targetRow = allTableRowsData.find(r => r.id == newRow.dataset.rowId);
-                    if (targetRow && targetRow.id) {
-                        try {
-                            await egresosAPI.reviewExpense(targetRow.id, {
-                                review_state: targetRow.status || 'pending',
-                                review_observations: this.value
-                            });
-                            console.log('Expense observation updated successfully');
-                            alert('Observación actualizada correctamente');
-                        } catch (error) {
-                            console.error('Error updating expense observation:', error);
-                        }
-                    }
-                }
-            });
             observationCell.appendChild(observationInput);
+            RowEdit.attachObservationSave(observationCell, observationInput, async (value) => {
+                const targetRow = allTableRowsData.find(r => r.id == newRow.dataset.rowId);
+                if (!targetRow || !targetRow.id) return;
+                await egresosAPI.reviewExpense(targetRow.id, {
+                    review_state: targetRow.status || 'pending',
+                    review_observations: value
+                });
+            });
 
             selectElement.addEventListener('change', async function() {
                 const selectedStatus = this.value;
@@ -654,6 +668,19 @@
 
             // Add delete button
             const deleteCell = newRow.insertCell();
+const actionsWrap = document.createElement('div');
+actionsWrap.className = 'actions-wrap';
+deleteCell.appendChild(actionsWrap);
+            if (isSuperAdmin) {
+                actionsWrap.appendChild(RowEdit.createEditButton(newRow, rowData, {
+                    tbody: tableBody,
+                    columnOffset: 1, // Checkbox column
+                    fields: EXPENSE_EDIT_FIELDS,
+                    save: (id, payload) => egresosAPI.updateExpense(id, payload),
+                    onSaved: () => loadData(currentPage),
+ onCancel: () => renderTable(allTableRowsData)
+                }));
+            }
             const deleteButton = document.createElement('button');
             deleteButton.textContent = 'Eliminar';
             deleteButton.className = 'delete-btn';
@@ -670,7 +697,8 @@
                     }
                 }
             });
-            deleteCell.appendChild(deleteButton);
+            actionsWrap.appendChild(deleteButton);
+newRow.insertCell().appendChild(RowInfo.createButton({ createUser: rowData.createUser, createdAt: rowData.createdAt, lastUpdatedUser: rowData.lastUpdatedUser, lastUpdatedAt: rowData.lastUpdatedAt }));
         });
         calculateAndDisplayTotals(dataToRender);
     }
@@ -694,6 +722,7 @@
     }
 
     async function applyFilters() {
+        if (!RowEdit.guard()) return;
         const filters = {};
         
         if (startDateInput.value) {
@@ -712,6 +741,7 @@
     }
 
     async function clearFilters() {
+        if (!RowEdit.guard()) return;
         startDateInput.value = '';
         endDateInput.value = '';
         sucursalFilterSelect.value = '';

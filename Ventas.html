@@ -115,6 +115,7 @@
     <script src="js/users.js"></script>
     <script src="js/branches.js"></script>
     <script src="js/sales.js"></script>
+    <script src="js/future-date.js"></script>
     <script>
         window.addEventListener('DOMContentLoaded', async () => {
             await cargarOperadoresYSeleccionarUsuario();
@@ -318,6 +319,7 @@
 
         async function enviarDatos(event) {
             event.preventDefault();
+            if (!confirmFutureDate(document.getElementById('fecha').value)) return;
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Enviando...';

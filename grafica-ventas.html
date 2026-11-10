@@ -8,6 +8,7 @@
 
 	<link rel="stylesheet" href="css/grafica-ventas.css">
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/chart-format.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
 <body>
@@ -24,7 +25,6 @@
         <div class="chart-container">
             <div class="chart-box"><div class="chart-title">Ventas Diarias</div><canvas id="ventasDiarias"></canvas></div>
             <div class="chart-box"><div class="chart-title">Ticket Promedio por Día</div><canvas id="ticketPromedioSemanal"></canvas></div>
-            <div class="chart-box"><div class="chart-title">Ventas Acumuladas Mensuales</div><canvas id="ventasMensuales"></canvas></div>
             <div class="chart-box"><div class="chart-title">Efectivo vs Tarjeta (Diario)</div><canvas id="efectivoVsTarjetaDiario"></canvas></div>
             <div class="chart-box"><div class="chart-title">Ventas por Día de la Semana</div><canvas id="ventasPorDiaSemana"></canvas></div>
             <div class="chart-box"><div class="chart-title">Distribución de Ventas por Sucursal</div><canvas id="ventasPorSucursalDonut"></canvas></div>
@@ -191,7 +191,7 @@
 		}
 
 		function renderCharts(data) {
-			const chartIds = ['ventasDiarias', 'ticketPromedioSemanal', 'ventasMensuales', 'efectivoVsTarjetaDiario', 'ventasPorDiaSemana', 'ventasPorSucursalDonut'];
+			const chartIds = ['ventasDiarias', 'ticketPromedioSemanal', 'efectivoVsTarjetaDiario', 'ventasPorDiaSemana', 'ventasPorSucursalDonut'];
 			chartIds.forEach(id => {
 				const chart = Chart.getChart(id);
 				if (chart) chart.destroy();
@@ -204,10 +204,6 @@
 			const dailyCash = dates.map(d => daily[d].efectivo);
 			const dailyCard = dates.map(d => daily[d].tarjeta);
 			
-			const monthly = groupByDate(data, 'month');
-			const months = Object.keys(monthly).sort();
-			const monthlySales = months.map(m => monthly[m].ventas);
-			
 			const weekday = groupByDate(data, 'weekday');
 			const daysOfWeek = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 			const salesByDay = daysOfWeek.map(day => weekday[day]?.ventas || 0);
@@ -216,15 +212,14 @@
             const sucursalLabels = Object.keys(bySucursal);
             const sucursalData = Object.values(bySucursal);
 			
-			const tooltipCallback = { plugins: { tooltip: { callbacks: { label: ctx => `$${ctx.parsed.y.toLocaleString('es-MX', {minimumFractionDigits: 2})}` } } } };
-            const tooltipDoughnut = { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString('es-MX')}` } } } };
+			const tooltipCallback = { plugins: { tooltip: { callbacks: { label: ctx => `$${ctx.parsed.y.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` } } } };
+            const tooltipDoughnut = { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` } } } };
 
 			new Chart('ventasDiarias', { type: 'line', data: { labels: dates, datasets: [{ label: 'Ventas Diarias', data: dailySales, borderColor: '#e94a7e', backgroundColor: 'rgba(233, 74, 126, 0.2)', fill: true, tension: 0.3 }] }, options: tooltipCallback });
 			new Chart('ticketPromedioSemanal', { type: 'bar', data: { labels: dates, datasets: [{ label: 'Ticket Promedio por Día', data: dailyTicketAverage, backgroundColor: '#f0d44c' }] }, options: tooltipCallback });
-			new Chart('ventasMensuales', { type: 'line', data: { labels: months, datasets: [{ label: 'Ventas Mensuales', data: monthlySales, borderColor: '#41c5d3', backgroundColor: 'rgba(65, 197, 211, 0.2)', fill: true, tension: 0.3 }] }, options: tooltipCallback });
 			new Chart('efectivoVsTarjetaDiario', { type: 'bar', data: { labels: dates, datasets: [{ label: 'Efectivo', data: dailyCash, backgroundColor: '#2ecc71' }, { label: 'Tarjeta', data: dailyCard, backgroundColor: '#9b59b6' }] }, options: { ...tooltipCallback, scales: { x: { stacked: true }, y: { stacked: true } } } });
 			new Chart('ventasPorDiaSemana', { type: 'radar', data: { labels: daysOfWeek, datasets: [{ label: 'Ventas por Día', data: salesByDay, borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.3)' }] }, options: tooltipCallback });
-			new Chart('ventasPorSucursalDonut', { type: 'doughnut', data: { labels: sucursalLabels, datasets: [{ data: sucursalData, backgroundColor: ['#e94a7e', '#f0d44c', '#41c5d3', '#9b59b6', '#3498db', '#e67e22', '#2ecc71'] }] }, options: tooltipDoughnut });
+			new Chart('ventasPorSucursalDonut', { type: 'doughnut', data: { labels: sucursalLabels, datasets: [{ data: sucursalData, backgroundColor: CHART_COLORS }] }, options: tooltipDoughnut });
 		}
 	</script>
 </body>

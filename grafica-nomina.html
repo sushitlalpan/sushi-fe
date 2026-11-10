@@ -8,6 +8,7 @@
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="css/grafica-nomina.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/chart-format.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
@@ -29,18 +30,6 @@
             <div class="chart-box">
                 <div class="chart-title">Top 10 Colaboradores por Costo en Nómina</div>
                 <canvas id="topColaboradores"></canvas>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title">Promedio de Nómina por Colaborador por Sucursal</div>
-                <canvas id="promedioPorSucursal"></canvas>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title">Nómina Mensual Acumulada</div>
-                <canvas id="nominasMensuales"></canvas>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title">Días Laborados por Semana</div>
-                <canvas id="diasLaboradosSemanal"></canvas>
             </div>
             <div class="chart-box">
                 <div class="chart-title">Distribución por Tipo de Nómina</div>
@@ -170,13 +159,6 @@
             }
         }
 
-        function getWeekNumber(date) {
-            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-        }
-
         function renderCharts(data) {
             Object.values(charts).forEach(chart => {
                 if (chart) chart.destroy();
@@ -198,24 +180,6 @@
             }, {});
             const labelsSucursal = Object.keys(bySucursal);
 
-            const monthly = data.reduce((acc, { fecha, nomina }) => {
-                if (fecha) {
-                    const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
-                    acc[key] = (acc[key] || 0) + nomina;
-                }
-                return acc;
-            }, {});
-            const months = Object.keys(monthly).sort();
-
-            const weekly = data.reduce((acc, { fecha, diasLaborados }) => {
-                if (fecha) {
-                    const key = `Semana ${getWeekNumber(fecha)}`;
-                    acc[key] = (acc[key] || 0) + diasLaborados;
-                }
-                return acc;
-            }, {});
-            const weeks = Object.keys(weekly).sort((a, b) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1]));
-
             const byTipoNomina = data.reduce((acc, { tipoNomina, nomina }) => {
                 if (tipoNomina) acc[tipoNomina] = (acc[tipoNomina] || 0) + nomina;
                 return acc;
@@ -227,23 +191,16 @@
                         callbacks: {
                             label: ctx => {
                                 const value = typeof ctx.parsed === 'object' ? (ctx.parsed.y || ctx.parsed) : ctx.parsed;
-                                return `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+                                return `$${value.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                             }
                         }
                     }
                 }
             };
-            const chartColors = ['#e94a7e', '#f0d44c', '#41c5d3', '#9b59b6', '#3498db', '#e67e22', '#2ecc71'];
 
             charts.topColaboradores = new Chart('topColaboradores', { type: 'bar', data: { labels: topColaboradores.map(([name]) => name), datasets: [{ label: 'Total Nómina', data: topColaboradores.map(([, val]) => val), backgroundColor: '#e94a7e' }] }, options: tooltipCurrency });
-            charts.promedioPorSucursal = new Chart('promedioPorSucursal', { type: 'bar', data: { labels: labelsSucursal, datasets: [{ label: 'Promedio de Nómina', data: labelsSucursal.map(s => bySucursal[s].total / bySucursal[s].count), backgroundColor: '#f0d44c' }] }, options: tooltipCurrency });
-            charts.nominasMensuales = new Chart('nominasMensuales', { type: 'line', data: { labels: months, datasets: [{ label: 'Nómina Mensual', data: months.map(m => monthly[m]), borderColor: '#41c5d3', backgroundColor: 'rgba(65, 197, 211, 0.2)', fill: true, tension: 0.3 }] }, options: tooltipCurrency });
-            charts.diasLaboradosSemanal = new Chart('diasLaboradosSemanal', { type: 'bar', data: { labels: weeks, datasets: [{ label: 'Días Laborados', data: weeks.map(w => weekly[w]), backgroundColor: '#2ecc71' }] }, options: { plugins: { tooltip: { callbacks: { label: ctx => {
-                const value = typeof ctx.parsed === 'object' ? (ctx.parsed.y || ctx.parsed) : ctx.parsed;
-                return `${value} días`;
-            } } } } } });
-            charts.tipoNominaDonut = new Chart('tipoNominaDonut', { type: 'doughnut', data: { labels: Object.keys(byTipoNomina), datasets: [{ data: Object.values(byTipoNomina), backgroundColor: ['#e94a7e', '#3498db', '#9b59b6'] }] }, options: { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString('es-MX')}` } } } } });
-            charts.nominasPorSucursalDonut = new Chart('nominasPorSucursalDonut', { type: 'pie', data: { labels: labelsSucursal, datasets: [{ data: labelsSucursal.map(s => bySucursal[s].total), backgroundColor: chartColors }] }, options: { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString('es-MX')}` } } } } });
+            charts.tipoNominaDonut = new Chart('tipoNominaDonut', { type: 'doughnut', data: { labels: Object.keys(byTipoNomina), datasets: [{ data: Object.values(byTipoNomina), backgroundColor: CHART_COLORS }] }, options: { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` } } } } });
+            charts.nominasPorSucursalDonut = new Chart('nominasPorSucursalDonut', { type: 'pie', data: { labels: labelsSucursal, datasets: [{ data: labelsSucursal.map(s => bySucursal[s].total), backgroundColor: CHART_COLORS }] }, options: { plugins: { tooltip: { callbacks: { label: ctx => `${ctx.label}: $${ctx.parsed.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` } } } } });
         }
     </script>
 </body>

@@ -6,6 +6,7 @@
     <title>Panel de Administración - Cierre de Caja</title>
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="css/tabla-de-ventas.css">
+<link rel="stylesheet" href="css/row-info.css">
     <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
 <body>
@@ -68,7 +69,8 @@
                         <th>TOTAL DE INGRESOS</th>
                         <th>NOTAS</th>
                         <th>ESTADO</th>
-                        <th>ACCIONES</th>
+                        <th class="actions-header">ACCIONES</th>
+<th>INFO</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -94,6 +96,9 @@
     <script src="js/auth-guard.js"></script>
     <script src="js/sales.js"></script>
     <script src="js/branches.js"></script>
+    <script src="js/future-date.js"></script>
+<script src="js/row-edit.js"></script>
+<script src="js/row-info.js"></script>
     <script>
     // Pagination functions
     function updatePaginationUI() {
@@ -108,6 +113,7 @@
     
     async function goToPage(page) {
         if (page < 1 || page > totalPages || page === currentPage) return;
+        if (!RowEdit.guard()) return;
         clearSelection(); // Clear selection when changing pages
         await loadData(page);
     }
@@ -199,7 +205,7 @@
     
     let allTableRowsData = [];
     let currentFilteredAndRenderedRows = [];
-    const currentHeaderColCount = 23; // Fixed: always includes observation column
+    const currentHeaderColCount = 24; // Fixed: always includes observation column
     
     // Pagination variables
     let currentPage = 1;
@@ -226,6 +232,22 @@
         'totalEfectivoReal', 'totalComisionKiwi', 'totalSinComision', 'totalIngresos'
     ];
 
+    // col = column index after the checkbox column; computed columns are not editable
+    const SALES_EDIT_FIELDS = [
+        { col: 1, key: 'fechaCorte', api: 'closure_date', type: 'date' },
+        { col: 2, key: 'noCierre', api: 'closure_number', type: 'text' },
+        { col: 3, key: 'ventasTotales', api: 'sales_total', type: 'number' },
+        { col: 4, key: 'tarjetaSegunITPV', api: 'card_itpv', type: 'number' },
+        { col: 5, key: 'devolucionTarjeta', api: 'card_refund', type: 'number' },
+        { col: 6, key: 'tarjetaKiwi', api: 'card_kiwi', type: 'number' },
+        { col: 7, key: 'transfer', api: 'transfer_amt', type: 'number' },
+        { col: 9, key: 'efectivo', api: 'cash_amt', type: 'number' },
+        { col: 10, key: 'devolucionEfectivo', api: 'cash_refund', type: 'number' },
+        { col: 14, key: 'noPagos', api: 'payments_nbr', type: 'number', step: '1' },
+        { col: 16, key: 'totalComisionKiwi', api: 'kiwi_fee_total', type: 'number' },
+        { col: 19, key: 'notas', api: 'notes', type: 'text' }
+    ];
+
     function parseNumber(value) {
         const num = parseFloat(value);
         return isNaN(num) ? 0 : num;
@@ -247,7 +269,7 @@
             newTh.textContent = 'OBSERVACIONES';
             newTh.classList.add('observation-header');
             // Insert before ACCIONES column
-            const accionesHeader = tableHeaderRow.querySelector('th:last-child');
+            const accionesHeader = tableHeaderRow.querySelector('.actions-header');
             tableHeaderRow.insertBefore(newTh, accionesHeader);
         }
     }
@@ -332,7 +354,11 @@
                     notas: record.notes || '',
                     status: record.review_state || 'pending',
                     observation: record.review_observations || '',
-                    isLocked: record.is_locked || false
+                    isLocked: record.is_locked || false,
+ createUser: record.create_user || '',
+ createdAt: record.created_at || '',
+ lastUpdatedUser: record.last_updated_user || '',
+ lastUpdatedAt: record.last_updated_at || ''
                 };
                 return rowDataObject;
             });
@@ -422,6 +448,7 @@
         appendCell(totalRow, ''); // ESTADO
         appendCell(totalRow, ''); // OBSERVACIONES
         appendCell(totalRow, ''); // ACCIONES
+ appendCell(totalRow, ''); // INFO
 
         // Create average row
         const averageRow = tableBody.insertRow();
@@ -449,6 +476,7 @@
         appendCell(averageRow, ''); // ESTADO
         appendCell(averageRow, ''); // OBSERVACIONES
         appendCell(averageRow, ''); // ACCIONES
+ appendCell(averageRow, ''); // INFO
     }
 
     // Selection Management Functions (Superadmin)
@@ -639,6 +667,7 @@
     }
 
     function renderTable(dataToRender) {
+        RowEdit.reset();
         tableBody.innerHTML = '';
         currentFilteredAndRenderedRows = dataToRender;
         updateTableHeader();
@@ -702,6 +731,7 @@
                 
                 // Add change event handler
                 branchSelect.addEventListener('change', async function() {
+                    if (RowEdit.isEditing()) return; // Branch is saved with the row edit
                     const selectedBranchId = this.value;
                     const selectedBranch = allBranches.find(b => b.id == selectedBranchId);
                     const targetRow = allTableRowsData.find(r => r.id === newRow.dataset.rowId);
@@ -753,24 +783,15 @@
                     const targetRow = allTableRowsData.find(r => r.id === newRow.dataset.rowId);
                     if (targetRow) targetRow.observation = this.value;
                 });
-                observationInput.addEventListener('keydown', async function(e) {
-                    if (e.key === 'Enter') {
-                        const targetRow = allTableRowsData.find(r => r.id === newRow.dataset.rowId);
-                        if (targetRow && targetRow.id) {
-                            try {
-                                await salesAPI.reviewSales(targetRow.id, {
-                                    review_state: targetRow.status || 'pending',
-                                    review_observations: this.value
-                                });
-                                console.log('Sales observation updated successfully');
-                                alert('Observación actualizada correctamente');
-                            } catch (error) {
-                                console.error('Error updating sales observation:', error);
-                            }
-                        }
-                    }
-                });
                 observationCell.appendChild(observationInput);
+                RowEdit.attachObservationSave(observationCell, observationInput, async (value) => {
+                    const targetRow = allTableRowsData.find(r => r.id === newRow.dataset.rowId);
+                    if (!targetRow || !targetRow.id) return;
+                    await salesAPI.reviewSales(targetRow.id, {
+                        review_state: targetRow.status || 'pending',
+                        review_observations: value
+                    });
+                });
 
             selectElement.addEventListener('change', async function() {
                 const selectedStatus = this.value;
@@ -799,6 +820,19 @@
 
             // Add delete button
             const deleteCell = newRow.insertCell();
+const actionsWrap = document.createElement('div');
+actionsWrap.className = 'actions-wrap';
+deleteCell.appendChild(actionsWrap);
+            if (isSuperAdmin) {
+                actionsWrap.appendChild(RowEdit.createEditButton(newRow, rowData, {
+                    tbody: tableBody,
+                    columnOffset: 1, // Checkbox column
+                    fields: SALES_EDIT_FIELDS,
+                    save: (id, payload) => salesAPI.updateSales(id, payload),
+                    onSaved: () => loadData(currentPage),
+ onCancel: () => renderTable(allTableRowsData)
+                }));
+            }
             const deleteButton = document.createElement('button');
             deleteButton.textContent = 'Eliminar';
             deleteButton.className = 'delete-btn';
@@ -815,7 +849,8 @@
                     }
                 }
             });
-            deleteCell.appendChild(deleteButton);
+            actionsWrap.appendChild(deleteButton);
+newRow.insertCell().appendChild(RowInfo.createButton({ createUser: rowData.createUser, createdAt: rowData.createdAt, lastUpdatedUser: rowData.lastUpdatedUser, lastUpdatedAt: rowData.lastUpdatedAt }));
         });
         calculateAndDisplayTotals(dataToRender);
     }
@@ -839,6 +874,7 @@
     }
 
     async function applyFilters() {
+        if (!RowEdit.guard()) return;
         const filters = {};
         
         if (startDateInput.value) {
@@ -857,6 +893,7 @@
     }
 
     async function clearFilters() {
+        if (!RowEdit.guard()) return;
         startDateInput.value = '';
         endDateInput.value = '';
         sucursalFilterSelect.value = '';
