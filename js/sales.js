@@ -57,6 +57,11 @@ class SalesAPI {
         return await apiClient.patch(`${this.basePath}/sales/${saleId}/review`, reviewUpdate);
     }
 
+    // Update sales record (superadmin only); only included fields are applied
+    async updateSales(saleId, data) {
+        return await apiClient.put(`${this.basePath}/sales/${saleId}`, data);
+    }
+
     // Delete sales record
     async deleteSales(saleId) {
         return await apiClient.delete(`${this.basePath}/sales/${saleId}`);

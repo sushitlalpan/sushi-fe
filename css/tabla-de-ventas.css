@@ -39,6 +39,18 @@ tr[data-status="pending"]:hover { background-color: #eef8fb !important; }
 .filters-container button:hover { background-color: #31a7b3; }
 .observation-cell { width: 150px; }
 .observation-input { width: calc(100% - 10px); padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; box-sizing: border-box; }
+.observation-cell { position: relative; }
+.observation-cell.has-save .observation-input { width: calc(100% - 36px); }
+.obs-save-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 14px; font-style: normal; line-height: 1; user-select: none; }
+.obs-save-icon[hidden] { display: none; }
+.obs-save-icon.saving { opacity: 0.4; pointer-events: none; }
+.actions-wrap { display: flex; align-items: center; gap: 8px; }
+.edit-btn { background-color: #0d6efd; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.cancel-btn { background-color: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.cancel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.edit-btn.save-btn { background-color: #198754; }
+.edit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.row-edit-input { width: 100%; min-width: 80px; padding: 5px; border: 1px solid #0d6efd; border-radius: 4px; font-size: 12px; box-sizing: border-box; }
 
 /* Superadmin Multi-Select Styles */
 .hidden { display: none !important; }

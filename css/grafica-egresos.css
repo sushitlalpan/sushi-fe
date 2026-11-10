@@ -54,7 +54,7 @@ h1 {
 }
 .chart-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 30px;
     padding: 20px;
 }
@@ -74,4 +74,8 @@ canvas {
     margin-bottom: 15px;
     color: var(--blue);
     text-align: center;
+}
+
+@media (max-width: 900px) {
+    .chart-container { grid-template-columns: 1fr; }
 }

@@ -7,6 +7,7 @@
     <link rel="icon" href="assets/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="css/grafica-egresos.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/chart-format.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
@@ -27,10 +28,6 @@
             <div class="chart-box">
                 <div class="chart-title">Gastos Diarios</div>
                 <canvas id="gastosDiariosChart"></canvas>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title">Gastos Acumulados Mensuales</div>
-                <canvas id="gastosMensualesChart"></canvas>
             </div>
             <div class="chart-box">
                 <div class="chart-title">Distribución de Gastos por Concepto</div>
@@ -176,21 +173,6 @@
             const dailyLabels = Object.keys(dailyData).sort();
             const dailyValues = dailyLabels.map(label => dailyData[label]);
 
-            const monthlyData = data.reduce((acc, { fecha, total }) => {
-                if (fecha) {
-                    const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
-                    acc[key] = (acc[key] || 0) + total;
-                }
-                return acc;
-            }, {});
-            const monthlyKeys = Object.keys(monthlyData).sort();
-            const monthlyLabels = monthlyKeys.map(key => {
-                const [year, month] = key.split('-');
-                const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-                return `${monthNames[parseInt(month) - 1]} ${year}`;
-            });
-            const monthlyValues = monthlyKeys.map(key => monthlyData[key]);
-
             const byConcepto = data.reduce((acc, { concepto, total }) => {
                 if (concepto) {
                     acc[concepto] = (acc[concepto] || 0) + total;
@@ -209,10 +191,9 @@
             const labelsSucursal = Object.keys(bySucursal);
             const dataSucursal = Object.values(bySucursal);
 
-            const chartColors = ['#e94a7e', '#f0d44c', '#41c5d3', '#9b59b6', '#3498db', '#e67e22', '#2ecc71', '#e74c3c'];
             const tooltipCurrency = { plugins: { tooltip: { callbacks: { label: ctx => {
                 const value = typeof ctx.parsed === 'object' ? (ctx.parsed.y || ctx.parsed) : ctx.parsed;
-                return `$${value.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+                return `$${value.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             } } } } };
 
             charts.gastosDiarios = new Chart('gastosDiariosChart', {
@@ -224,21 +205,12 @@
                 options: tooltipCurrency
             });
 
-            charts.gastosMensuales = new Chart('gastosMensualesChart', {
-                type: 'bar',
-                data: {
-                    labels: monthlyLabels,
-                    datasets: [{ label: 'Gastos', data: monthlyValues, backgroundColor: '#2ecc71' }]
-                },
-                options: tooltipCurrency
-            });
-
             charts.gastosPorConcepto = new Chart('gastosPorConceptoChart', {
                 type: 'doughnut',
                 data: { 
                     labels: labelsConcepto, 
                     // CORRECCIÓN: Se arregló el error de tipeo "Gastros"
-                    datasets: [{ label: 'Gastos', data: dataConcepto, backgroundColor: chartColors }] 
+                    datasets: [{ label: 'Gastos', data: dataConcepto, backgroundColor: CHART_COLORS }] 
                 },
                 options: { plugins: { legend: { position: 'right' }, ...tooltipCurrency.plugins } }
             });
@@ -247,7 +219,7 @@
                 type: 'pie',
                 data: { 
                     labels: labelsSucursal, 
-                    datasets: [{ label: 'Gastos', data: dataSucursal, backgroundColor: chartColors.slice().reverse() }] 
+                    datasets: [{ label: 'Gastos', data: dataSucursal, backgroundColor: CHART_COLORS }] 
                 },
                 options: { plugins: { legend: { position: 'right' }, ...tooltipCurrency.plugins } }
             });

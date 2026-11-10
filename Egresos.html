@@ -44,6 +44,7 @@
               <option value="UTENSILIOS">UTENSILIOS</option>
               <option value="JARCERÍA">JARCERÍA</option>
               <option value="ENVÍOS">ENVÍOS</option>
+              <option value="RETIROS">RETIROS</option>
               <option value="OTROS">OTROS</option>
               <option value="MANTENIMIENTO">MANTENIMIENTO</option>
               <option value="LUZ">LUZ</option>
@@ -95,6 +96,7 @@
   <script src="js/users.js"></script>
   <script src="js/branches.js"></script>
   <script src="js/egresos.js"></script>
+  <script src="js/future-date.js"></script>
   <script>
     const form = document.getElementById('egresoForm');
     const operadorSelect = document.getElementById('operadorSelect');
@@ -244,6 +246,7 @@
 
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
+      if (!confirmFutureDate(document.getElementById('fecha').value)) return;
       const submitButton = form.querySelector('.submit-btn');
       submitButton.disabled = true;
       submitButton.textContent = 'Enviando...';

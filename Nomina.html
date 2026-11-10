@@ -64,6 +64,7 @@
   <script src="js/users.js"></script>
   <script src="js/branches.js"></script>
   <script src="js/nomina.js"></script>
+  <script src="js/future-date.js"></script>
   <script>
     const operadorSelect = document.getElementById('operador');
     const sucursalSelect = document.getElementById('sucursal');
@@ -222,6 +223,7 @@
 
     form.addEventListener("submit", async function (e) {
       e.preventDefault();
+      if (!confirmFutureDate(document.getElementById('fecha').value)) return;
       const submitButton = form.querySelector('.submit-btn');
       submitButton.disabled = true;
       submitButton.textContent = 'Enviando...';

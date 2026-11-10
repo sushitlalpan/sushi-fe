@@ -58,6 +58,11 @@ class EgresosAPI {
         return await apiClient.patch(`${this.basePath}/expenses/${expenseId}/review`, reviewUpdate);
     }
 
+    // Update expense record (superadmin only); only included fields are applied
+    async updateExpense(expenseId, data) {
+        return await apiClient.put(`${this.basePath}/expenses/${expenseId}`, data);
+    }
+
     // Delete expense record
     async deleteExpense(expenseId) {
         return await apiClient.delete(`${this.basePath}/expenses/${expenseId}`);

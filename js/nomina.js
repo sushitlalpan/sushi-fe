@@ -58,6 +58,11 @@ class NominaAPI {
         return await apiClient.patch(`${this.basePath}/payroll/${payrollId}/review`, reviewUpdate);
     }
 
+    // Update payroll record (superadmin only); only included fields are applied
+    async updatePayroll(payrollId, data) {
+        return await apiClient.put(`${this.basePath}/payroll/${payrollId}`, data);
+    }
+
     // Delete payroll record
     async deletePayroll(payrollId) {
         return await apiClient.delete(`${this.basePath}/payroll/${payrollId}`);

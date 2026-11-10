@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="css/grafica-general.css">
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/chart-format.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jwt-decode@3.1.2/build/jwt-decode.min.js"></script>
 </head>
 
@@ -157,10 +158,10 @@
     }
 
     function updateSummaryStats(summary) {
-      document.getElementById('totalVentas').textContent = `$${parseFloat(summary.total_sales || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
-      document.getElementById('totalEgresos').textContent = `$${parseFloat(summary.total_expenses || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
-      document.getElementById('totalNomina').textContent = `$${parseFloat(summary.total_payroll || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
-      document.getElementById('margenNeto').textContent = `$${parseFloat(summary.net_profit || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+      document.getElementById('totalVentas').textContent = `$${parseFloat(summary.total_sales || 0).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('totalEgresos').textContent = `$${parseFloat(summary.total_expenses || 0).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('totalNomina').textContent = `$${parseFloat(summary.total_payroll || 0).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('margenNeto').textContent = `$${parseFloat(summary.net_profit || 0).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
       
       const totalSales = parseFloat(summary.total_sales || 0);
       const totalExpenses = parseFloat(summary.total_expenses || 0);
